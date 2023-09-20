@@ -94,7 +94,7 @@ def japaneseStory():
     messages, response = create_story(selected_words)
 
     session['selected_words_position'] = 0
-    session['selected_words_lineNumber'] = selected_words
+    session['selected_words'] = selected_words
     session['messages'] = messages
     session['japaneseStory'] = response
 
@@ -117,7 +117,10 @@ def anki():
         selected_words = session['selected_words']
         selected_words_position = session['selected_words_position']
 
-        wort = selected_words[selected_words_position][0]
+        if len(selected_words) > selected_words_position:
+            wort = selected_words[selected_words_position][0]
+        else:
+            wort = ""
 
         result_data = {
             'wort': wort,
@@ -130,11 +133,15 @@ def anki():
 @app.route('/ankiTranslate', methods=['POST'])
 def anki_translate():
 
-    selected_words = session['selected_words_lineNumber']
+    selected_words = session['selected_words']
     selected_words_position = session['selected_words_position']
 
-    hiragana = selected_words[selected_words_position][1]
-    translation = selected_words[selected_words_position][2]
+    if len(selected_words) > selected_words_position:
+        hiragana = selected_words[selected_words_position][1]
+        translation = selected_words[selected_words_position][2]
+    else:
+        hiragana = ""
+        translation = ""
 
     result_data = {
         'translation': translation,
