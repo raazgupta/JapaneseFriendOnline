@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vocabulary Translation</title>
+</head>
+<body>
+    <h1>Vocabulary Translation:</h1>
+    <p>{{ result.translation }}</p>
+    <form method="POST" action="./ankiRecord">
+        <button type="submit" name="frequency" value="{{ result.frequency1 }}"> {{ result.frequency1_display }} </button>
+        <button type="submit" name="frequency" value="{{ result.frequency2 }}"> {{ result.frequency2_display }} </button>
+    </form>
+</body>
+</html>
