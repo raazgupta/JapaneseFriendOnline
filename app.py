@@ -1,15 +1,18 @@
+import json
+
 from flask import Flask, render_template, session, redirect, url_for
 import openai
 import os
 import random
 from datetime import datetime
+import requests
 
 app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SESSION_SECRET_KEY')
+app.secret_key = os.environ.get('FLASK_SESSION_SECRET_KEY')
 
 
 def get_completion_from_messages(messages, model="gpt-3.5-turbo", temperature=0.0, max_tokens=500):
-    openai.api_key = os.getenv('OPENAI_API_KEY')
+    openai.api_key = os.environ.get('OPENAI_API_KEY')
     # print("Get completion message: ", messages)
     response = openai.ChatCompletion.create(
         model=model,
@@ -19,18 +22,57 @@ def get_completion_from_messages(messages, model="gpt-3.5-turbo", temperature=0.
     )
     return response.choices[0].message["content"]
 
+def get_response_from_wanikani(url_end = ""):
+    api_url = "https://api.wanikani.com/v2/" + url_end
+    print("WANIKANI API request:" + api_url )
+
+    wanikani_api_key = os.environ.get('WANIKANI_API_KEY')
+    custom_headers = {
+        "Wanikani-Revision": "20170710",
+        "Authorization": f"Bearer {wanikani_api_key}"
+    }
+    print(custom_headers)
+    response = requests.get(api_url, headers=custom_headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        print("JSON response:")
+        print(data)
+        return data
+    else:
+        print(f"Error: {response.status_code}")
+        return None
+
 
 def chooseSelectedWords():
-    # Get Level of user, get assignments where levels=X and immediately available for review and subject_types=kanji
-    # From data, randomly select 10 kanji
-    # For each kanji, randomly select 1 amalgamation_subject_id (vocabulary)
-    # Get subject data for the 10 vocabs
-
     # Format of selected_words [Word, Hiragana, Meaning]
     selected_words = []
 
+    # Get Level of user
+    user_json_dict = get_response_from_wanikani(url_end="user")
+    if user_json_dict != None:
+        user_level = user_json_dict['data']['level']
+
+        # Get assignments where levels=X and immediately available for review and subject_types=kanji
+        url_end = f"assignments?levels={user_level}&subject_types=kanji&immediately_available_for_review"
+        assignments_json_dict = get_response_from_wanikani(url_end=url_end)
+        if assignments_json_dict != None:
+            # From assignment, randomly select 10 kanji
+            # If number of assignments less than equal to 10, then just select all 10 kanji from assignments
+            total_count = assignments_json_dict['total_count']
+            # Extract 'subject_id' values from the 'data' list
+            subject_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
+            print(subject_ids)
+            #if int(total_count) <= 10:
 
 
+
+    # For each kanji, randomly select 1 amalgamation_subject_id (vocabulary)
+    # Get subject data for the 10 vocabs
+
+
+
+    print (f"Selected Words: {','.join(selected_words)}")
     return selected_words
 
 
@@ -91,7 +133,8 @@ def get_last_run_datetime():
 def japaneseStory():
 
     selected_words = chooseSelectedWords()
-    messages, response = create_story(selected_words)
+    temperature = (10 - len(selected_words))/10
+    messages, response = create_story(selected_words, temperature=temperature)
 
     session['selected_words_position'] = 0
     session['selected_words'] = selected_words
