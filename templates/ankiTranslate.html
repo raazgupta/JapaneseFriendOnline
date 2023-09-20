@@ -5,10 +5,10 @@
 </head>
 <body>
     <h1>Vocabulary Translation:</h1>
-    <p>{{ result.translation }}</p>
+    <p>Hiragana: {{ result.hiragana }}</p>
+    <p>Meaning: {{ result.translation }}</p>
     <form method="POST" action="./ankiRecord">
-        <button type="submit" name="frequency" value="{{ result.frequency1 }}"> {{ result.frequency1_display }} </button>
-        <button type="submit" name="frequency" value="{{ result.frequency2 }}"> {{ result.frequency2_display }} </button>
+        <button type="submit" name="next"> Next </button>
     </form>
 </body>
 </html>
