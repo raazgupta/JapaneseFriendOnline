@@ -24,23 +24,23 @@ def get_completion_from_messages(messages, model="gpt-3.5-turbo", temperature=0.
 
 def get_response_from_wanikani(url_end = ""):
     api_url = "https://api.wanikani.com/v2/" + url_end
-    print("WANIKANI API request:" + api_url )
+    #print("WANIKANI API request:" + api_url )
 
     wanikani_api_key = os.environ.get('WANIKANI_API_KEY')
     custom_headers = {
         "Wanikani-Revision": "20170710",
         "Authorization": f"Bearer {wanikani_api_key}"
     }
-    print(custom_headers)
+    #print(custom_headers)
     response = requests.get(api_url, headers=custom_headers)
 
     if response.status_code == 200:
         data = response.json()
-        print("JSON response:")
-        print(data)
+        #print("JSON response:")
+        #print(data)
         return data
     else:
-        print(f"Error: {response.status_code}")
+        print(f"Wanikani API Error: {response.status_code}")
         return None
 
 
@@ -53,30 +53,44 @@ def chooseSelectedWords():
     if user_json_dict != None:
         user_level = user_json_dict['data']['level']
 
-        # Get assignments where levels=X and immediately available for review and subject_types=kanji
-        url_end = f"assignments?levels={user_level}&subject_types=kanji&immediately_available_for_review"
+        subject_types = "kanji"
+
+        # Get assignments where levels=X and immediately available for review and subject_types=kanji / vocabulary
+        url_end = f"assignments?levels={user_level}&subject_types={subject_types}&immediately_available_for_review"
         assignments_json_dict = get_response_from_wanikani(url_end=url_end)
         if assignments_json_dict != None:
-            # From assignment, randomly select 10 kanji
-            # Extract 'subject_id' values from the 'data' list
-            kanji_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
-            # print(kanji_ids)
-            if len(kanji_ids) > 10:
-                kanji_ids = random.sample(kanji_ids, 10)
-            # print(kanji_ids)
 
-
-            for kanji_id in kanji_ids:
-                # Get the subject details
-                url_end = "subjects/" + str(kanji_id)
-                kanji_subject_json_dict = get_response_from_wanikani(url_end=url_end)
-                if kanji_subject_json_dict != None:
-                    # For each kanji, randomly select 1 amalgamation_subject_id (vocabulary)
-                    vocabs_list = kanji_subject_json_dict['data']['amalgamation_subject_ids']
-                    random_vocab = random.sample(vocabs_list, 1)
-                    # print(random_vocab)
-                    # Get [Word, Hiragana, Meaning] for each vocab and append to selected_words
-                    url_end = "subjects/" + str(random_vocab[0])
+            if subject_types == "kanji":
+                # From assignment, randomly select 10 kanji
+                # Extract 'subject_id' values from the 'data' list
+                kanji_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
+                # print(kanji_ids)
+                if len(kanji_ids) > 10:
+                    kanji_ids = random.sample(kanji_ids, 10)
+                    # print(kanji_ids)
+                for kanji_id in kanji_ids:
+                    # Get the subject details
+                    url_end = "subjects/" + str(kanji_id)
+                    kanji_subject_json_dict = get_response_from_wanikani(url_end=url_end)
+                    if kanji_subject_json_dict != None:
+                        # For each kanji, randomly select 1 amalgamation_subject_id (vocabulary)
+                        vocabs_list = kanji_subject_json_dict['data']['amalgamation_subject_ids']
+                        random_vocab = random.sample(vocabs_list, 1)
+                        # print(random_vocab)
+                        # Get [Word, Hiragana, Meaning] for each vocab and append to selected_words
+                        url_end = "subjects/" + str(random_vocab[0])
+                        vocab_subject_json_dict = get_response_from_wanikani(url_end=url_end)
+                        if vocab_subject_json_dict != None:
+                            word = vocab_subject_json_dict['data']['characters']
+                            hiragana = vocab_subject_json_dict['data']['readings'][0]['reading']
+                            meaning = vocab_subject_json_dict['data']['meanings'][0]['meaning']
+                            selected_words.append([word, hiragana, meaning])
+            elif subject_types == "vocabulary":
+                vocab_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
+                if len(vocab_ids) > 10:
+                    vocab_ids = random.sample(vocab_ids, 10)
+                for vocab_id in vocab_ids:
+                    url_end = "subjects/" + str(vocab_id)
                     vocab_subject_json_dict = get_response_from_wanikani(url_end=url_end)
                     if vocab_subject_json_dict != None:
                         word = vocab_subject_json_dict['data']['characters']
@@ -84,7 +98,7 @@ def chooseSelectedWords():
                         meaning = vocab_subject_json_dict['data']['meanings'][0]['meaning']
                         selected_words.append([word, hiragana, meaning])
 
-    print (f"Selected Words: {selected_words}")
+    #print (f"Selected Words: {selected_words}")
     return selected_words
 
 
@@ -111,8 +125,8 @@ def create_story(selected_words, temperature=0.0):
 
     # Print story in German
     response = get_completion_from_messages(messages, temperature=temperature)
-    print("Japanese Story:")
-    print(response)
+    #print("Japanese Story:")
+    #print(response)
 
     messages.append(
         {'role': 'assistant',

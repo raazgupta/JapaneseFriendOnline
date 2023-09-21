@@ -1,0 +1,11 @@
+/* dark-mode.css */
+body {
+  background-color: #333;
+  color: #fff;
+}
+
+/* Example for inverting colors on specific elements */
+.content {
+  background-color: #222;
+  color: #ddd;
+}
