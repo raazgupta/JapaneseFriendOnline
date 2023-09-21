@@ -58,26 +58,41 @@ def chooseSelectedWords():
         assignments_json_dict = get_response_from_wanikani(url_end=url_end)
         if assignments_json_dict != None:
             # From assignment, randomly select 10 kanji
-            # If number of assignments less than equal to 10, then just select all 10 kanji from assignments
-            total_count = assignments_json_dict['total_count']
             # Extract 'subject_id' values from the 'data' list
-            subject_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
-            print(subject_ids)
-            #if int(total_count) <= 10:
+            kanji_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
+            # print(kanji_ids)
+            if len(kanji_ids) > 10:
+                kanji_ids = random.sample(kanji_ids, 10)
+            # print(kanji_ids)
 
 
+            for kanji_id in kanji_ids:
+                # Get the subject details
+                url_end = "subjects/" + str(kanji_id)
+                kanji_subject_json_dict = get_response_from_wanikani(url_end=url_end)
+                if kanji_subject_json_dict != None:
+                    # For each kanji, randomly select 1 amalgamation_subject_id (vocabulary)
+                    vocabs_list = kanji_subject_json_dict['data']['amalgamation_subject_ids']
+                    random_vocab = random.sample(vocabs_list, 1)
+                    # print(random_vocab)
+                    # Get [Word, Hiragana, Meaning] for each vocab and append to selected_words
+                    url_end = "subjects/" + str(random_vocab[0])
+                    vocab_subject_json_dict = get_response_from_wanikani(url_end=url_end)
+                    if vocab_subject_json_dict != None:
+                        word = vocab_subject_json_dict['data']['characters']
+                        hiragana = vocab_subject_json_dict['data']['readings'][0]['reading']
+                        meaning = vocab_subject_json_dict['data']['meanings'][0]['meaning']
+                        selected_words.append([word, hiragana, meaning])
 
-    # For each kanji, randomly select 1 amalgamation_subject_id (vocabulary)
-    # Get subject data for the 10 vocabs
-
-
-
-    print (f"Selected Words: {','.join(selected_words)}")
+    print (f"Selected Words: {selected_words}")
     return selected_words
 
 
 def create_story(selected_words, temperature=0.0):
     # Prompt to create Japanese Story
+    words = []
+    for selected_word in selected_words:
+        words.append(selected_word[0])
 
     messages = [
         {'role': 'system',
@@ -89,7 +104,7 @@ def create_story(selected_words, temperature=0.0):
          'content': f"""
             Write a story in Japanese with maximum 3 sentences.
             Only use words that are from the Japanese Language Proficiency Test JLPT N5 vocabulary list. 
-            Make sure these words are in the story: {",".join(selected_words)}
+            Make sure these words are in the story: {",".join(words)}
          """
          },
     ]
