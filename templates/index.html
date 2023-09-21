@@ -3,11 +3,36 @@
 <head>
     <title>Japanese Friend Online</title>
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <style>
+        /* Add your CSS styling for the loading text here */
+        #loading {
+            display: none;
+            text-align: left;
+            padding: 0px;
+        }
+    </style>
 </head>
 <body>
     <h1>Japanese Friend Online</h1>
-    <form method="POST" action="./japaneseStory">
+    <form id="story-form" method="POST" action="./japaneseStory">
         <button type="submit">Show Japanese Story</button>
     </form>
+
+    <div id="loading">
+        <p>AI is cooking your tasty story. Please be patient ...</p>
+    </div>
+
+    <script>
+        // JavaScript code to show the loading text
+        document.addEventListener("DOMContentLoaded", function () {
+            var storyForm = document.getElementById("story-form");
+            var loading = document.getElementById("loading");
+
+            storyForm.addEventListener("submit", function (event) {
+                // Display loading text while waiting for the response
+                loading.style.display = "block";
+            });
+        });
+    </script>
 </body>
 </html>
