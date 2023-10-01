@@ -3,12 +3,22 @@
 <head>
     <title>Vocabulary Review</title>
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <style>
+        /* Add your CSS styling for the loading text here */
+        /* Style the button */
+        .custom-button {
+            font-size: 12px; /* Set the font size to 20 pixels */
+            font-family: Arial, sans-serif; /* Set the font family */
+            padding: 5px 10px; /* Add some padding for a larger button */
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
     <h1>Vocabulary Review:</h1>
-    <p>{{ result.number }}: {{ result.wort }}</p>
+    <p style="font-size: 20px;">{{ result.number }}: {{ result.wort }}</p>
     <form method="POST" action="./ankiTranslate">
-        <button type="submit">Translation</button>
+        <button type="submit" class="custom-button">Translation</button>
     </form>
 </body>
 </html>

@@ -10,16 +10,34 @@
             text-align: left;
             padding: 0px;
         }
+        /* Style the button */
+        .custom-button {
+            font-size: 12px; /* Set the font size to 20 pixels */
+            font-family: Arial, sans-serif; /* Set the font family */
+            padding: 5px 10px; /* Add some padding for a larger button */
+            border-radius: 5px;
+        }
+        label, select {
+            font-size: 16px; /* Increase font size for label and dropdown */
+            margin-bottom: 10px; /* Add margin to separate them from the button */
+            display: block; /* Make them block elements to stack vertically */
+        }
     </style>
 </head>
 <body>
     <h1>Japanese Friend Online</h1>
     <form id="story-form" method="POST" action="./japaneseStory">
-        <button type="submit">Show Japanese Story</button>
+        <label for="category">Generate story using:</label>
+        <select id="category" name="category">
+            <option value="vocabulary" selected>Vocabulary</option>
+            <option value="kanji">Kanji</option>
+        </select>
+        <br> <!-- Add a line break to move the button to the next line -->
+        <button type="submit" class="custom-button">Show Japanese Story</button>
     </form>
 
     <div id="loading">
-        <p>AI is cooking your tasty story. Please be patient ...</p>
+        <p style="color: white;">AI is cooking your tasty story. Please be patient ...</p>
     </div>
 
     <script>

@@ -3,16 +3,26 @@
 <head>
     <title>Hiragana and English Translation</title>
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <style>
+        /* Add your CSS styling for the loading text here */
+        /* Style the button */
+        .custom-button {
+            font-size: 12px; /* Set the font size to 20 pixels */
+            font-family: Arial, sans-serif; /* Set the font family */
+            padding: 5px 10px; /* Add some padding for a larger button */
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
     <h3>Japanese Story:</h3>
-    <p>{{ result.japaneseStory }}</p>
+    <p style="font-size: 20px;">{{ result.japaneseStory }}</p>
     <h3>Hiragana:</h3>
-    <p>{{ result.hiraganaStory }}</p>
+    <p style="font-size: 20px;">{{ result.hiraganaStory }}</p>
     <h3>English Translation:</h3>
-    <p>{{ result.englishStory }}</p>
+    <p style="font-size: 20px;">{{ result.englishStory }}</p>
     <a href="./">
-        <button>Go Home</button>
+        <button class="custom-button">Go Home</button>
     </a>
 </body>
 </html>

@@ -1,6 +1,11 @@
-import json
+'''
+# Import the activate_this.py script from the virtual environment
+activate_this = '/home/public/App/JapaneseFriendOnline/venv/bin/activate_this.py'
+with open(activate_this) as file_:
+    exec(file_.read(), dict(__file__=activate_this))
+'''
 
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, render_template, session, redirect, url_for, request
 import openai
 import os
 import random
@@ -24,27 +29,53 @@ def get_completion_from_messages(messages, model="gpt-3.5-turbo", temperature=0.
 
 def get_response_from_wanikani(url_end = ""):
     api_url = "https://api.wanikani.com/v2/" + url_end
-    #print("WANIKANI API request:" + api_url )
+    # print("WANIKANI API request:" + api_url )
 
     wanikani_api_key = os.environ.get('WANIKANI_API_KEY')
     custom_headers = {
         "Wanikani-Revision": "20170710",
         "Authorization": f"Bearer {wanikani_api_key}"
     }
-    #print(custom_headers)
+    # print(custom_headers)
     response = requests.get(api_url, headers=custom_headers)
 
     if response.status_code == 200:
         data = response.json()
-        #print("JSON response:")
-        #print(data)
+        print("JSON response:")
+        print(data)
         return data
     else:
         print(f"Wanikani API Error: {response.status_code}")
         return None
 
 
-def chooseSelectedWords():
+# Get assignments where levels=(1 to current level) and immediately available for review and subject_types=vocubulary
+# This is a recursive function that goes up to Level 60, which is the max user level
+def addVocabsInAscendingOrder(user_level, current_level_position, vocab_ids):
+    if user_level > current_level_position:
+        levels_string = ""
+        for counter in range(1,11):
+            current_level_position = current_level_position + 1
+            if counter != 10:
+                levels_string = levels_string + str(current_level_position) + ","
+            else:
+                levels_string = levels_string + str(current_level_position)
+        url_end = f"assignments?levels={levels_string}&subject_types=vocabulary&immediately_available_for_review"
+        assignments_json_dict = get_response_from_wanikani(url_end=url_end)
+        if assignments_json_dict != None:
+            current_vocab_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
+            number_missing = 10 - len(vocab_ids)
+            if len(current_vocab_ids) > number_missing:
+                current_vocab_ids = random.sample(current_vocab_ids, number_missing)
+                vocab_ids.extend(current_vocab_ids)
+                return vocab_ids
+            else:
+                vocab_ids.extend(current_vocab_ids)
+                return addVocabsInAscendingOrder(user_level, current_level_position, vocab_ids)
+    else:
+        return vocab_ids
+
+def chooseSelectedWords(subject_types="vocabulary"):
     # Format of selected_words [Word, Hiragana, Meaning]
     selected_words = []
 
@@ -53,14 +84,11 @@ def chooseSelectedWords():
     if user_json_dict != None:
         user_level = user_json_dict['data']['level']
 
-        subject_types = "kanji"
-
-        # Get assignments where levels=X and immediately available for review and subject_types=kanji / vocabulary
-        url_end = f"assignments?levels={user_level}&subject_types={subject_types}&immediately_available_for_review"
-        assignments_json_dict = get_response_from_wanikani(url_end=url_end)
-        if assignments_json_dict != None:
-
-            if subject_types == "kanji":
+        if subject_types == "kanji":
+            # Get assignments where levels=X and immediately available for review and subject_types=kanji
+            url_end = f"assignments?levels={user_level}&subject_types={subject_types}&immediately_available_for_review"
+            assignments_json_dict = get_response_from_wanikani(url_end=url_end)
+            if assignments_json_dict != None:
                 # From assignment, randomly select 10 kanji
                 # Extract 'subject_id' values from the 'data' list
                 kanji_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
@@ -85,18 +113,19 @@ def chooseSelectedWords():
                             hiragana = vocab_subject_json_dict['data']['readings'][0]['reading']
                             meaning = vocab_subject_json_dict['data']['meanings'][0]['meaning']
                             selected_words.append([word, hiragana, meaning])
-            elif subject_types == "vocabulary":
-                vocab_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
-                if len(vocab_ids) > 10:
-                    vocab_ids = random.sample(vocab_ids, 10)
-                for vocab_id in vocab_ids:
-                    url_end = "subjects/" + str(vocab_id)
-                    vocab_subject_json_dict = get_response_from_wanikani(url_end=url_end)
-                    if vocab_subject_json_dict != None:
-                        word = vocab_subject_json_dict['data']['characters']
-                        hiragana = vocab_subject_json_dict['data']['readings'][0]['reading']
-                        meaning = vocab_subject_json_dict['data']['meanings'][0]['meaning']
-                        selected_words.append([word, hiragana, meaning])
+        elif subject_types == "vocabulary":
+            # Get assignments where levels=(1 to current level) and immediately available for review and subject_types=vocubulary
+
+            vocab_ids = addVocabsInAscendingOrder(user_level, 0, [])
+
+            for vocab_id in vocab_ids:
+                url_end = "subjects/" + str(vocab_id)
+                vocab_subject_json_dict = get_response_from_wanikani(url_end=url_end)
+                if vocab_subject_json_dict != None:
+                    word = vocab_subject_json_dict['data']['characters']
+                    hiragana = vocab_subject_json_dict['data']['readings'][0]['reading']
+                    meaning = vocab_subject_json_dict['data']['meanings'][0]['meaning']
+                    selected_words.append([word, hiragana, meaning])
 
     #print (f"Selected Words: {selected_words}")
     return selected_words
@@ -117,16 +146,16 @@ def create_story(selected_words, temperature=0.0):
         {'role': 'user',
          'content': f"""
             Write a story in Japanese with maximum 3 sentences.
-            Only use words that are from the Japanese Language Proficiency Test JLPT N5 vocabulary list. 
-            Make sure these words are in the story: {",".join(words)}
+            The story should be written in simple Japanese that a child can understand. 
+            Make sure these words are in the story: {",".join(words)}.
          """
          },
     ]
 
     # Print story in German
     response = get_completion_from_messages(messages, temperature=temperature)
-    #print("Japanese Story:")
-    #print(response)
+    print("Japanese Story:")
+    print(response)
 
     messages.append(
         {'role': 'assistant',
@@ -161,7 +190,9 @@ def get_last_run_datetime():
 @app.route('/japaneseStory', methods=['POST'])
 def japaneseStory():
 
-    selected_words = chooseSelectedWords()
+    print(request.form.get('category'))
+    selected_words = chooseSelectedWords(request.form.get('category'))
+    print(selected_words)
     temperature = (10 - len(selected_words))/10
     messages, response = create_story(selected_words, temperature=temperature)
 
@@ -209,16 +240,27 @@ def anki_translate():
     selected_words_position = session['selected_words_position']
 
     if len(selected_words) > selected_words_position:
+        word = selected_words[selected_words_position][0]
         hiragana = selected_words[selected_words_position][1]
         translation = selected_words[selected_words_position][2]
+        if len(selected_words) == (selected_words_position + 1):
+            final_word = 1
+        else:
+            final_word = 0
     else:
+        word = ""
         hiragana = ""
         translation = ""
+        final_word = 0
 
     result_data = {
         'translation': translation,
-        'hiragana': hiragana
+        'hiragana': hiragana,
+        'word': word,
+        'number': selected_words_position + 1,
+        'final_word': final_word
     }
+    print(result_data)
 
     return render_template('ankiTranslate.html', result=result_data)
 
@@ -238,7 +280,10 @@ def englishTranslation():
     # Translate the story to English
     messages.append(
         {'role': 'user',
-         'content': 'Translate this Japanese Story to English.'
+         'content': f"""
+                        Translate this Japanese Story to English. 
+                        Make sure to translate all Japanese characters to english including the vocabulary within square brackets.
+                    """
          }
     )
     englishStory = get_completion_from_messages(messages)
@@ -261,9 +306,11 @@ def ankiRecord():
 
     if (selected_words_position + 1) < len(selected_words):
         return redirect(url_for('anki', _external=False))
+        # return redirect('/App/JapaneseFriendOnline/anki')
     else:
         # Show the English Translation
         return redirect(url_for('englishTranslation', _external=False))
+        # return redirect('/App/JapaneseFriendOnline/englishTranslation')
 
 if __name__ == '__main__':
     app.run(debug=False)

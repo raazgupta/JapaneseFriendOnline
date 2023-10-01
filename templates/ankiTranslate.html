@@ -3,13 +3,47 @@
 <head>
     <title>Vocabulary Translation</title>
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <style>
+        /* Add your CSS styling for the loading text here */
+        /* Style the button */
+        .custom-button {
+            font-size: 12px; /* Set the font size to 20 pixels */
+            font-family: Arial, sans-serif; /* Set the font family */
+            padding: 5px 10px; /* Add some padding for a larger button */
+            border-radius: 5px;
+        }
+        #loading {
+            display: none;
+            text-align: left;
+            padding: 0px;
+        }
+    </style>
 </head>
 <body>
     <h1>Vocabulary Translation:</h1>
-    <p>Hiragana: {{ result.hiragana }}</p>
-    <p>Meaning: {{ result.translation }}</p>
-    <form method="POST" action="./ankiRecord">
-        <button type="submit" name="next"> Next </button>
+    <p style="font-size: 20px;">{{ result.number }}: {{ result.word }}</p>
+    <p style="font-size: 20px;">Hiragana: {{ result.hiragana }}</p>
+    <p style="font-size: 20px;">Meaning: {{ result.translation }}</p>
+    <form id="translate-form" method="POST" action="./ankiRecord">
+        <button type="submit" name="next" class="custom-button"> Next </button>
     </form>
+    <div id="loading">
+        <p style="color: white;">Please be patient ...</p>
+    </div>
+
+    <script>
+        // JavaScript code to show the loading text
+        document.addEventListener("DOMContentLoaded", function () {
+            var storyForm = document.getElementById("translate-form");
+            var loading = document.getElementById("loading");
+
+            storyForm.addEventListener("submit", function (event) {
+                // If it is the last word, display please be patient while waiting for the english translation
+                if ({{ result.final_word }} === 1) {
+                    loading.style.display = "block";
+                }
+            });
+        });
+    </script>
 </body>
 </html>
