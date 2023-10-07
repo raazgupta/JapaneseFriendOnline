@@ -41,8 +41,8 @@ def get_response_from_wanikani(url_end = ""):
 
     if response.status_code == 200:
         data = response.json()
-        print("JSON response:")
-        print(data)
+        #print("JSON response:")
+        #print(data)
         return data
     else:
         print(f"Wanikani API Error: {response.status_code}")
@@ -101,18 +101,43 @@ def chooseSelectedWords(subject_types="vocabulary"):
                     url_end = "subjects/" + str(kanji_id)
                     kanji_subject_json_dict = get_response_from_wanikani(url_end=url_end)
                     if kanji_subject_json_dict != None:
-                        # For each kanji, randomly select 1 amalgamation_subject_id (vocabulary)
-                        vocabs_list = kanji_subject_json_dict['data']['amalgamation_subject_ids']
-                        random_vocab = random.sample(vocabs_list, 1)
-                        # print(random_vocab)
-                        # Get [Word, Hiragana, Meaning] for each vocab and append to selected_words
-                        url_end = "subjects/" + str(random_vocab[0])
-                        vocab_subject_json_dict = get_response_from_wanikani(url_end=url_end)
-                        if vocab_subject_json_dict != None:
-                            word = vocab_subject_json_dict['data']['characters']
-                            hiragana = vocab_subject_json_dict['data']['readings'][0]['reading']
-                            meaning = vocab_subject_json_dict['data']['meanings'][0]['meaning']
+                        # For each kanji, ask ChatGPT to provide 1 simple comonly used word that has this Kanji, the hiragana reading, the meaning
+                        kanji = kanji_subject_json_dict['data']['characters']
+                        messages = [
+                            {'role': 'system',
+                             'content': """
+                                 You are a Japanese teacher. 
+                                 """
+                             },
+                            {'role': 'user',
+                             'content': f"""
+                                    Provide 1 simple commonly used word that has this Kanji: 愛.
+                                    Also provide the Hiragana reading of this word.
+                                    Also provide the meaning of this word in English.
+                                    Output should be in comma separated format, like this: Kanji word, Hiragana reading, English translation.
+                                 """
+                             },
+                            {'role': 'assistant',
+                             'content': '愛してる,あいしてる,Love you'
+                            },
+                            {'role': 'user',
+                             'content': f"""
+                                     Provide 1 simple commonly used word that has this Kanji: {kanji}.
+                                     Also provide the Hiragana reading of this word.
+                                     Also provide the meaning of this word in English.
+                                     Output should be in comma separated format like this: Kanji word, Hiragana reading, English translation.
+                                  """
+                             }
+                        ]
+                        response = get_completion_from_messages(messages = messages)
+                        # print ("Kanji ChatGPT response:" + response)
+                        kanji_components = response.split(',')
+                        if len(kanji_components) == 3:
+                            word = kanji_components[0]
+                            hiragana = kanji_components[1]
+                            meaning = kanji_components[2]
                             selected_words.append([word, hiragana, meaning])
+
         elif subject_types == "vocabulary":
             # Get assignments where levels=(1 to current level) and immediately available for review and subject_types=vocubulary
 
@@ -154,8 +179,8 @@ def create_story(selected_words, temperature=0.0):
 
     # Print story in German
     response = get_completion_from_messages(messages, temperature=temperature)
-    print("Japanese Story:")
-    print(response)
+    # print("Japanese Story:")
+    # print(response)
 
     messages.append(
         {'role': 'assistant',
@@ -190,9 +215,9 @@ def get_last_run_datetime():
 @app.route('/japaneseStory', methods=['POST'])
 def japaneseStory():
 
-    print(request.form.get('category'))
+    # print(request.form.get('category'))
     selected_words = chooseSelectedWords(request.form.get('category'))
-    print(selected_words)
+    # print(selected_words)
     temperature = (10 - len(selected_words))/10
     messages, response = create_story(selected_words, temperature=temperature)
 
@@ -260,9 +285,38 @@ def anki_translate():
         'number': selected_words_position + 1,
         'final_word': final_word
     }
-    print(result_data)
+    # print(result_data)
 
     return render_template('ankiTranslate.html', result=result_data)
+
+
+def withFuriganaHTMLParagraph(japaneseStory):
+    messages = [
+        {'role': 'system',
+         'content': """
+             You are given a story in Japanese text. Convert it to an HTML paragraph. 
+             Provide the Furigana characters above the Kanji characters.
+             The HTML paragraph should have font size of 30px. 
+             """
+         },
+        {'role': 'user',
+         'content': f"""
+            ある日、学校の実験室で実験をしていたとき、友達がカメラで写真を撮りたいと言いました。私たちは入場券を求めて、写真を撮ることができました。写真を見ると、私たちの笑顔が広がっていました。
+             """
+         },
+        {'role': 'assistant',
+         'content': f"""
+            <p style="font-size: 20px;">ある<ruby>日<rp>(</rp><rt>ひ</rt><rp>)</rp></ruby>、<ruby>森<rp>(</rp><rt>もり</rt><rp>)</rp></ruby>の<ruby>中<rp>(</rp><rt>ちゅう</rt><rp>)</rp></ruby>で<ruby>小<rp>(</rp><rt>ちいさ</rt><rp>)</rp></ruby>なウサギが<ruby>大<rp>(</rp><rt>おお</rt><rp>)</rp></ruby>きな<ruby>熊<rp>(</rp><rt>くま</rt><rp>)</rp></ruby>と<ruby>友達<rp>(</rp><rt>ともだち</rt><rp>)</rp></ruby>になりました。</p>
+            """
+         },
+        {'role': 'user',
+         'content': japaneseStory
+         }
+    ]
+
+    furiganaVersion = get_completion_from_messages(messages, model="gpt-4")
+    # print(furiganaVersion)
+    return furiganaVersion
 
 @app.route('/englishTranslation', methods=['POST','GET'])
 def englishTranslation():
@@ -270,19 +324,54 @@ def englishTranslation():
     japaneseStory = session['japaneseStory']
 
     # Get the response in All Hiragana
+    '''
     messages.append(
         {'role': 'user',
          'content': f'Convert all Kanji characters to Hiragana characters in this Japanese Story.'
          }
     )
-    hiraganaStory = get_completion_from_messages(messages)
+    '''
+
+
+    '''
+    messages = [
+        {'role': 'system',
+         'content': """
+             You are given a story in Japanese text. Convert it to an HTML paragraph. 
+             Provide the Furigana characters above the Kanji characters.
+             Do not provide the Furigana characters above the Hiragana characters 
+             """
+         },
+        {'role': 'user',
+         'content': f"""
+                Write a story in Japanese with maximum 3 sentences.
+                The story should be written in simple Japanese that a child can understand. 
+                Make sure these words are in the story: {",".join(words)}.
+             """
+         },
+    ]
+    '''
+
+    """
+    messages.append(
+        {'role': 'user',
+         'content': '''
+                For this Japanese story, provide an HTML paragraph with Furigana characters above the Kanji characters. 
+                The Furigana characters should not be above the Hiragana characters. 
+                The Furigana characters should only be above the Kanji characters.
+                '''
+         }
+    )
+    """
+
+    hiraganaStory = withFuriganaHTMLParagraph(japaneseStory)
 
     # Translate the story to English
     messages.append(
         {'role': 'user',
          'content': f"""
                         Translate this Japanese Story to English. 
-                        Make sure to translate all Japanese characters to english including the vocabulary within square brackets.
+                        Make sure to translate all Japanese characters to English.
                     """
          }
     )

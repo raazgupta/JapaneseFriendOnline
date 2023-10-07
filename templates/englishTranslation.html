@@ -18,7 +18,7 @@
     <h3>Japanese Story:</h3>
     <p style="font-size: 20px;">{{ result.japaneseStory }}</p>
     <h3>Hiragana:</h3>
-    <p style="font-size: 20px;">{{ result.hiraganaStory }}</p>
+    {{ result.hiraganaStory | safe }}
     <h3>English Translation:</h3>
     <p style="font-size: 20px;">{{ result.englishStory }}</p>
     <a href="./">
