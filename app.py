@@ -51,12 +51,12 @@ def get_response_from_wanikani(url_end = ""):
 
 # Get assignments where levels=(1 to current level) and immediately available for review and subject_types=vocubulary
 # This is a recursive function that goes up to Level 60, which is the max user level
-def addVocabsInAscendingOrder(user_level, current_level_position, vocab_ids):
+def addVocabsInAscendingOrder(user_level, current_level_position, vocab_ids, max_words, num_levels_per_query):
     if user_level > current_level_position:
         levels_string = ""
-        for counter in range(1,11):
+        for counter in range(1,num_levels_per_query+1):
             current_level_position = current_level_position + 1
-            if counter != 10:
+            if counter != num_levels_per_query:
                 levels_string = levels_string + str(current_level_position) + ","
             else:
                 levels_string = levels_string + str(current_level_position)
@@ -64,18 +64,18 @@ def addVocabsInAscendingOrder(user_level, current_level_position, vocab_ids):
         assignments_json_dict = get_response_from_wanikani(url_end=url_end)
         if assignments_json_dict != None:
             current_vocab_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
-            number_missing = 10 - len(vocab_ids)
+            number_missing = max_words - len(vocab_ids)
             if len(current_vocab_ids) > number_missing:
                 current_vocab_ids = random.sample(current_vocab_ids, number_missing)
                 vocab_ids.extend(current_vocab_ids)
                 return vocab_ids
             else:
                 vocab_ids.extend(current_vocab_ids)
-                return addVocabsInAscendingOrder(user_level, current_level_position, vocab_ids)
+                return addVocabsInAscendingOrder(user_level, current_level_position, vocab_ids, max_words, num_levels_per_query)
     else:
         return vocab_ids
 
-def chooseSelectedWords(subject_types="vocabulary"):
+def chooseSelectedWords(subject_types="vocabulary", max_words=5):
     # Format of selected_words [Word, Hiragana, Meaning]
     selected_words = []
 
@@ -89,12 +89,12 @@ def chooseSelectedWords(subject_types="vocabulary"):
             url_end = f"assignments?levels={user_level}&subject_types={subject_types}&immediately_available_for_review"
             assignments_json_dict = get_response_from_wanikani(url_end=url_end)
             if assignments_json_dict != None:
-                # From assignment, randomly select 10 kanji
+                # From assignment, randomly select max_words kanji
                 # Extract 'subject_id' values from the 'data' list
                 kanji_ids = [item['data']['subject_id'] for item in assignments_json_dict['data']]
                 # print(kanji_ids)
-                if len(kanji_ids) > 10:
-                    kanji_ids = random.sample(kanji_ids, 10)
+                if len(kanji_ids) > max_words:
+                    kanji_ids = random.sample(kanji_ids, max_words)
                     # print(kanji_ids)
                 for kanji_id in kanji_ids:
                     # Get the subject details
@@ -106,27 +106,20 @@ def chooseSelectedWords(subject_types="vocabulary"):
                         messages = [
                             {'role': 'system',
                              'content': """
-                                 You are a Japanese teacher. 
-                                 """
+                                Provide 1 simple commonly used word that has this Kanji
+                                Also provide the Hiragana reading of this word.
+                                Also provide the meaning of this word in English.
+                                Output should be in comma separated format, like this: Kanji word, Hiragana reading, English translation.
+                                """
                              },
                             {'role': 'user',
-                             'content': f"""
-                                    Provide 1 simple commonly used word that has this Kanji: 愛.
-                                    Also provide the Hiragana reading of this word.
-                                    Also provide the meaning of this word in English.
-                                    Output should be in comma separated format, like this: Kanji word, Hiragana reading, English translation.
-                                 """
+                             'content': "愛"
                              },
                             {'role': 'assistant',
                              'content': '愛してる,あいしてる,Love you'
                             },
                             {'role': 'user',
-                             'content': f"""
-                                     Provide 1 simple commonly used word that has this Kanji: {kanji}.
-                                     Also provide the Hiragana reading of this word.
-                                     Also provide the meaning of this word in English.
-                                     Output should be in comma separated format like this: Kanji word, Hiragana reading, English translation.
-                                  """
+                             'content': f"{kanji}"
                              }
                         ]
                         response = get_completion_from_messages(messages = messages)
@@ -140,8 +133,8 @@ def chooseSelectedWords(subject_types="vocabulary"):
 
         elif subject_types == "vocabulary":
             # Get assignments where levels=(1 to current level) and immediately available for review and subject_types=vocubulary
-
-            vocab_ids = addVocabsInAscendingOrder(user_level, 0, [])
+            num_levels_per_query = 5
+            vocab_ids = addVocabsInAscendingOrder(user_level, 0, [], max_words, num_levels_per_query)
 
             for vocab_id in vocab_ids:
                 url_end = "subjects/" + str(vocab_id)
@@ -156,7 +149,7 @@ def chooseSelectedWords(subject_types="vocabulary"):
     return selected_words
 
 
-def create_story(selected_words, temperature=0.0):
+def create_story(selected_words, max_sentences, temperature=0.0):
     # Prompt to create Japanese Story
     words = []
     for selected_word in selected_words:
@@ -170,7 +163,7 @@ def create_story(selected_words, temperature=0.0):
          },
         {'role': 'user',
          'content': f"""
-            Write a story in Japanese with maximum 3 sentences.
+            Write a story in Japanese with maximum {max_sentences} sentences.
             The story should be written in simple Japanese that a child can understand. 
             Make sure these words are in the story: {",".join(words)}.
          """
@@ -178,7 +171,8 @@ def create_story(selected_words, temperature=0.0):
     ]
 
     # Print story in German
-    response = get_completion_from_messages(messages, temperature=temperature)
+    response = get_completion_from_messages(messages, temperature=temperature, model="gpt-4")
+    response = response.strip('"')
     # print("Japanese Story:")
     # print(response)
 
@@ -215,11 +209,16 @@ def get_last_run_datetime():
 @app.route('/japaneseStory', methods=['POST'])
 def japaneseStory():
 
+    # Maximum number of words per story
+    max_words = 5
+    # Maximum number of sentences per story
+    max_sentences = 1
+
     # print(request.form.get('category'))
-    selected_words = chooseSelectedWords(request.form.get('category'))
+    selected_words = chooseSelectedWords(request.form.get('category'), max_words)
     # print(selected_words)
-    temperature = (10 - len(selected_words))/10
-    messages, response = create_story(selected_words, temperature=temperature)
+    temperature = (max_words - len(selected_words))/max_words
+    messages, response = create_story(selected_words, max_sentences, temperature=temperature)
 
     session['selected_words_position'] = 0
     session['selected_words'] = selected_words
@@ -290,12 +289,13 @@ def anki_translate():
     return render_template('ankiTranslate.html', result=result_data)
 
 
-def withFuriganaHTMLParagraph(japaneseStory):
+def withFuriganaHTMLParagraph(japaneseStory, selected_words):
     messages = [
         {'role': 'system',
-         'content': """
+         'content': f"""
              You are given a story in Japanese text. Convert it to an HTML paragraph. 
              Provide the Furigana characters above the Kanji characters.
+             Make sure to provide the Furigana characters above the Kanji characters for all words in the Japanese text.
              The HTML paragraph should have font size of 30px. 
              """
          },
@@ -315,13 +315,14 @@ def withFuriganaHTMLParagraph(japaneseStory):
     ]
 
     furiganaVersion = get_completion_from_messages(messages, model="gpt-4")
-    # print(furiganaVersion)
+    print(furiganaVersion)
     return furiganaVersion
 
 @app.route('/englishTranslation', methods=['POST','GET'])
 def englishTranslation():
     messages = session['messages']
     japaneseStory = session['japaneseStory']
+    selected_words = session['selected_words']
 
     # Get the response in All Hiragana
     '''
@@ -364,7 +365,7 @@ def englishTranslation():
     )
     """
 
-    hiraganaStory = withFuriganaHTMLParagraph(japaneseStory)
+    hiraganaStory = withFuriganaHTMLParagraph(japaneseStory, selected_words)
 
     # Translate the story to English
     messages.append(
@@ -402,4 +403,4 @@ def ankiRecord():
         # return redirect('/App/JapaneseFriendOnline/englishTranslation')
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=False, port=5001)
