@@ -210,7 +210,7 @@ def get_last_run_datetime():
 def japaneseStory():
 
     # Maximum number of words per story
-    max_words = 5
+    max_words = 3
     # Maximum number of sentences per story
     max_sentences = 1
 
