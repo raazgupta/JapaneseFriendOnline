@@ -402,5 +402,26 @@ def ankiRecord():
         return redirect(url_for('englishTranslation', _external=False))
         # return redirect('/App/JapaneseFriendOnline/englishTranslation')
 
+@app.route('/japaneseConversation', methods=['POST'])
+def japaneseConversation():
+    result_data = []
+    return render_template('japaneseConversation.html', result=result_data)
+
+@app.route('/iSay', methods=['POST'])
+def japaneseConversation():
+    result_data = []
+
+    scenarioText = request.form['scenarioText']
+    # Start a CharGPT conversation with the scenarioText as the system message
+    conversationMessages = [
+        {'role': 'system',
+         'content': scenarioText
+         }
+    ]
+
+    session['conversationMessages'] = conversationMessages
+
+    return render_template('iSay.html', result=result_data)
+
 if __name__ == '__main__':
     app.run(debug=False, port=5001)
