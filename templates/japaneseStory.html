@@ -7,7 +7,7 @@
         /* Add your CSS styling for the loading text here */
         /* Style the button */
         .custom-button {
-            font-size: 12px; /* Set the font size to 20 pixels */
+            font-size: 20px; /* Set the font size to 20 pixels */
             font-family: Arial, sans-serif; /* Set the font family */
             padding: 5px 10px; /* Add some padding for a larger button */
             border-radius: 5px;
@@ -17,7 +17,7 @@
 <body>
     <h1>Japanese Story:</h1>
     <p>Last Run DateTime: {{ result.lastRunDateTime }}</p>
-    <p style="font-size: 20px;">Story: {{ result.japaneseStoryString }}</p>
+    <p style="font-size: 30px;">Story: {{ result.japaneseStoryString }}</p>
     <form method="POST" action="./anki">
         <button type="submit" class="custom-button">Practice Vocabulary</button>
     </form>

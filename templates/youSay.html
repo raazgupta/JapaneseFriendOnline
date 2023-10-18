@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Hiragana and English Translation</title>
+    <title>You Say</title>
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
     <style>
-        /* Add your CSS styling for the loading text here */
         /* Style the button */
         .custom-button {
             font-size: 20px; /* Set the font size to 20 pixels */
@@ -12,15 +11,23 @@
             padding: 5px 10px; /* Add some padding for a larger button */
             border-radius: 5px;
         }
+        #youSayText {
+            width: 100%;
+            height: 3em; /* 3 lines */
+        }
     </style>
 </head>
 <body>
-    <h3>Japanese Story:</h3>
-    <p style="font-size: 20px;">{{ result.japaneseStory }}</p>
-    <h3>Hiragana:</h3>
-    {{ result.hiraganaStory | safe }}
+    <h1>You Say</h1>
+    <h3>Spelling and Grammar suggestion:</h3>
+    {{ result.iSayTextReviewed | safe }}
+    <h3>Response:</h3>
+    {{ result.youSayTextFurigana | safe }}
     <h3>English Translation:</h3>
-    <p style="font-size: 20px;">{{ result.englishStory }}</p>
+    <p style="font-size: 20px;">{{ result.youSayTextEnglish }}</p>
+    <form id="youSayForm" method="POST" action="./youSay">
+        <button class="custom-button">Continue</button>
+    </form>
     <a href="./">
         <button class="custom-button">Go Home</button>
     </a>

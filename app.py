@@ -11,20 +11,25 @@ import os
 import random
 from datetime import datetime
 import requests
+import time
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SESSION_SECRET_KEY')
 
 
-def get_completion_from_messages(messages, model="gpt-3.5-turbo", temperature=0.0, max_tokens=500):
+def get_completion_from_messages(messages, model="gpt-4", temperature=0.0, max_tokens=500):
     openai.api_key = os.environ.get('OPENAI_API_KEY')
     # print("Get completion message: ", messages)
+    start_time = time.time()
     response = openai.ChatCompletion.create(
         model=model,
         messages=messages,
         temperature=temperature,
         max_tokens=max_tokens,
     )
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"ChatGPT response time: {elapsed_time:.2f} seconds.")
     return response.choices[0].message["content"]
 
 def get_response_from_wanikani(url_end = ""):
@@ -122,7 +127,7 @@ def chooseSelectedWords(subject_types="vocabulary", max_words=5):
                              'content': f"{kanji}"
                              }
                         ]
-                        response = get_completion_from_messages(messages = messages)
+                        response = get_completion_from_messages(messages = messages, max_tokens=100)
                         # print ("Kanji ChatGPT response:" + response)
                         kanji_components = response.split(',')
                         if len(kanji_components) == 3:
@@ -171,7 +176,7 @@ def create_story(selected_words, max_sentences, temperature=0.0):
     ]
 
     # Print story in German
-    response = get_completion_from_messages(messages, temperature=temperature, model="gpt-4")
+    response = get_completion_from_messages(messages, temperature=temperature, model="gpt-4", max_tokens=100)
     response = response.strip('"')
     # print("Japanese Story:")
     # print(response)
@@ -289,17 +294,22 @@ def anki_translate():
     return render_template('ankiTranslate.html', result=result_data)
 
 
-def withFuriganaHTMLParagraph(japaneseStory, selected_words):
+def withFuriganaHTMLParagraph(japaneseStory):
     messages = [
         {'role': 'system',
          'content': f"""
-             You are given a story in Japanese text. Convert it to an HTML paragraph. 
-             Provide the Furigana characters above the Kanji characters.
-             Make sure to provide the Furigana characters above the Kanji characters for all words in the Japanese text.
+             You are given text in Japanese text. Convert it to an HTML paragraph. 
+             Provide the Furigana characters above the Kanji characters using <ruby> blocks.
              The HTML paragraph should have font size of 30px. 
              """
          },
         {'role': 'user',
+         'content': japaneseStory
+         }
+    ]
+
+    '''
+    {'role': 'user',
          'content': f"""
             ある日、学校の実験室で実験をしていたとき、友達がカメラで写真を撮りたいと言いました。私たちは入場券を求めて、写真を撮ることができました。写真を見ると、私たちの笑顔が広がっていました。
              """
@@ -309,14 +319,46 @@ def withFuriganaHTMLParagraph(japaneseStory, selected_words):
             <p style="font-size: 20px;">ある<ruby>日<rp>(</rp><rt>ひ</rt><rp>)</rp></ruby>、<ruby>森<rp>(</rp><rt>もり</rt><rp>)</rp></ruby>の<ruby>中<rp>(</rp><rt>ちゅう</rt><rp>)</rp></ruby>で<ruby>小<rp>(</rp><rt>ちいさ</rt><rp>)</rp></ruby>なウサギが<ruby>大<rp>(</rp><rt>おお</rt><rp>)</rp></ruby>きな<ruby>熊<rp>(</rp><rt>くま</rt><rp>)</rp></ruby>と<ruby>友達<rp>(</rp><rt>ともだち</rt><rp>)</rp></ruby>になりました。</p>
             """
          },
+    '''
+
+    furiganaVersion = get_completion_from_messages(messages, model="gpt-4")
+    # print(furiganaVersion)
+    return furiganaVersion
+
+def translateToEnglish(japaneseStory):
+    messages = [
+        {'role': 'system',
+         'content': f"""
+                    You are given text in Japanese. Translate it to English. Make sure to translate all Japanese characters to English.
+                 """
+         },
         {'role': 'user',
          'content': japaneseStory
          }
     ]
 
-    furiganaVersion = get_completion_from_messages(messages, model="gpt-4")
-    print(furiganaVersion)
-    return furiganaVersion
+    englishVersion = get_completion_from_messages(messages, max_tokens=100)
+
+    return englishVersion
+
+def correctSpellingGrammar(japaneseStory):
+    messages = [
+        {'role': 'system',
+         'content': f"""
+                        Read this Japanese text and fix any spelling and grammar errors.
+                        If there are no errors then respond back with the same Japanese text.
+                     """
+         },
+        {'role': 'user',
+         'content': japaneseStory
+         }
+    ]
+    # print("correctSpellingGrammar:")
+    # print(messages)
+    correctSpellingGrammarVersion = get_completion_from_messages(messages, model="gpt-4", max_tokens=500)
+    # print(correctSpellingGrammarVersion)
+
+    return correctSpellingGrammarVersion
 
 @app.route('/englishTranslation', methods=['POST','GET'])
 def englishTranslation():
@@ -324,59 +366,23 @@ def englishTranslation():
     japaneseStory = session['japaneseStory']
     selected_words = session['selected_words']
 
-    # Get the response in All Hiragana
-    '''
-    messages.append(
-        {'role': 'user',
-         'content': f'Convert all Kanji characters to Hiragana characters in this Japanese Story.'
-         }
-    )
-    '''
+    # Get the response with Furigana
 
-
-    '''
-    messages = [
-        {'role': 'system',
-         'content': """
-             You are given a story in Japanese text. Convert it to an HTML paragraph. 
-             Provide the Furigana characters above the Kanji characters.
-             Do not provide the Furigana characters above the Hiragana characters 
-             """
-         },
-        {'role': 'user',
-         'content': f"""
-                Write a story in Japanese with maximum 3 sentences.
-                The story should be written in simple Japanese that a child can understand. 
-                Make sure these words are in the story: {",".join(words)}.
-             """
-         },
-    ]
-    '''
+    hiraganaStory = withFuriganaHTMLParagraph(japaneseStory)
 
     """
-    messages.append(
-        {'role': 'user',
-         'content': '''
-                For this Japanese story, provide an HTML paragraph with Furigana characters above the Kanji characters. 
-                The Furigana characters should not be above the Hiragana characters. 
-                The Furigana characters should only be above the Kanji characters.
-                '''
-         }
-    )
-    """
-
-    hiraganaStory = withFuriganaHTMLParagraph(japaneseStory, selected_words)
-
     # Translate the story to English
     messages.append(
         {'role': 'user',
-         'content': f"""
+         'content': f'''
                         Translate this Japanese Story to English. 
                         Make sure to translate all Japanese characters to English.
-                    """
+                    '''
          }
     )
-    englishStory = get_completion_from_messages(messages)
+    """
+
+    englishStory = translateToEnglish(japaneseStory)
 
     result_data = {
         'japaneseStory': japaneseStory,
@@ -404,14 +410,18 @@ def ankiRecord():
 
 @app.route('/japaneseConversation', methods=['POST'])
 def japaneseConversation():
-    result_data = []
-    return render_template('japaneseConversation.html', result=result_data)
+    # Save current run datetime in log file
+    log_datetime()
+    return render_template('japaneseConversation.html')
 
-@app.route('/iSay', methods=['POST'])
-def japaneseConversation():
+@app.route('/japaneseScenario', methods=['POST'])
+def japaneseScenario():
     result_data = []
 
     scenarioText = request.form['scenarioText']
+
+    scenarioText = scenarioText + ". You will always respond in simple Japanese that a child can understand."
+
     # Start a CharGPT conversation with the scenarioText as the system message
     conversationMessages = [
         {'role': 'system',
@@ -422,6 +432,48 @@ def japaneseConversation():
     session['conversationMessages'] = conversationMessages
 
     return render_template('iSay.html', result=result_data)
+
+@app.route('/iSay', methods=['POST'])
+def iSay():
+    result_data = []
+
+    iSayText = request.form['iSayText']
+    conversationMessages = session['conversationMessages']
+    # print(conversationMessages)
+
+    correctedText = correctSpellingGrammar(iSayText)
+
+    conversationMessages.append(
+        {'role': 'user',
+         'content': correctedText
+         }
+    )
+
+    youSayText = get_completion_from_messages(conversationMessages, max_tokens=100)
+    youSayTextFuriganaHTML = withFuriganaHTMLParagraph(youSayText)
+
+    youSayTextEnglish = translateToEnglish(youSayText)
+
+    iSayTextReviewed = withFuriganaHTMLParagraph(correctedText)
+
+    result_data = {
+        'youSayTextFurigana': youSayTextFuriganaHTML,
+        'youSayTextEnglish': youSayTextEnglish,
+        'iSayTextReviewed': iSayTextReviewed
+    }
+
+    conversationMessages.append(
+        {'role': 'assistant',
+         'content': youSayText
+         }
+    )
+    session['conversationMessages'] = conversationMessages
+
+    return render_template('youSay.html', result=result_data)
+
+@app.route('/youSay', methods=['POST'])
+def youSay():
+    return render_template('iSay.html')
 
 if __name__ == '__main__':
     app.run(debug=False, port=5001)
