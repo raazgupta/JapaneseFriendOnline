@@ -29,6 +29,7 @@ def get_completion_from_messages(messages, model="gpt-4", temperature=0.0, max_t
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
+    print(messages)
     print(f"ChatGPT response time: {elapsed_time:.2f} seconds.")
     return response.choices[0].message["content"]
 
@@ -360,6 +361,26 @@ def correctSpellingGrammar(japaneseStory):
 
     return correctSpellingGrammarVersion
 
+@app.route('/englishTranslationDynamic', methods=['POST','GET'])
+def englishTranslationDynamic():
+    japaneseStory = session['japaneseStory']
+    result_data = {
+        'japaneseStory': japaneseStory
+    }
+    return render_template('englishTranslationDynamic.html', result=result_data)
+
+@app.route('/ankiEnglishTranslation')
+def ankiEnglishTranslation():
+    japaneseStory = session['japaneseStory']
+    japaneseStoryEnglish = translateToEnglish(japaneseStory)
+    return japaneseStoryEnglish
+
+@app.route('/ankiFurigana')
+def ankiFurigana():
+    japaneseStory = session['japaneseStory']
+    japaneseStoryFurigana = withFuriganaHTMLParagraph(japaneseStory)
+    return japaneseStoryFurigana
+
 @app.route('/englishTranslation', methods=['POST','GET'])
 def englishTranslation():
     messages = session['messages']
@@ -405,8 +426,8 @@ def ankiRecord():
         # return redirect('/App/JapaneseFriendOnline/anki')
     else:
         # Show the English Translation
-        return redirect(url_for('englishTranslation', _external=False))
-        # return redirect('/App/JapaneseFriendOnline/englishTranslation')
+        return redirect(url_for('englishTranslationDynamic', _external=False))
+        # return redirect('/App/JapaneseFriendOnline/englishTranslationDynamic')
 
 @app.route('/japaneseConversation', methods=['POST'])
 def japaneseConversation():
@@ -432,6 +453,50 @@ def japaneseScenario():
     session['conversationMessages'] = conversationMessages
 
     return render_template('iSay.html', result=result_data)
+
+@app.route('/iSayDynamic', methods=['POST'])
+def iSayDynamic():
+    session['iSayText'] = request.form['iSayText']
+    iSayText = request.form['iSayText']
+    conversationMessages = session['conversationMessages']
+    conversationMessages.append(
+        {'role': 'user',
+         'content': iSayText
+         }
+    )
+    youSayText = get_completion_from_messages(conversationMessages, max_tokens=100)
+    session['youSayText'] = youSayText
+    conversationMessages.append(
+        {'role': 'assistant',
+         'content': youSayText
+         }
+    )
+    session['conversationMessages'] = conversationMessages
+
+    result_data = {
+        'youSayText': youSayText,
+        'iSayText': iSayText
+    }
+
+    return render_template('youSayDynamic.html', result=result_data)
+
+@app.route('/conversationEnglishTranslation')
+def conversationEnglishTranslation():
+    youSayText = session['youSayText']
+    youSayTextEnglish = translateToEnglish(youSayText)
+    return youSayTextEnglish
+
+@app.route('/conversationSpellGrammarCheck')
+def conversationSpellGrammarCheck():
+    iSayText = session['iSayText']
+    iSayTextReviewed = withFuriganaHTMLParagraph(iSayText)
+    return iSayTextReviewed
+
+@app.route('/conversationFuriganaResponse')
+def conversationFuriganaResponse():
+    youSayText = session['youSayText']
+    youSayTextFurigana = withFuriganaHTMLParagraph(youSayText)
+    return youSayTextFurigana
 
 @app.route('/iSay', methods=['POST'])
 def iSay():

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hiragana and English Translation</title>
+    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        // Define a function to make the API request for English Translation
+        function fetchEnglishTranslation() {
+            $.ajax({
+                url: '/ankiEnglishTranslation',  // Replace with the actual API endpoint
+                // url: '/App/JapaneseFriendOnline/ankiEnglishTranslation',
+                method: 'GET',              // Use 'GET' or 'POST' based on your API
+                success: function(data) {
+                    // Update the content of the paragraph with the response data
+                    $('#dynamic-english').text(data);
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+        // Define a function to make the API request for showing　the furigana
+        function fetchFurigana() {
+            $.ajax({
+                // url: '/App/JapaneseFriendOnline/ankiFurigana',  // Replace with the actual API endpoint
+                url: '/ankiFurigana',
+                method: 'GET',              // Use 'GET' or 'POST' based on your API
+                success: function(data) {
+                    // Update the content of the paragraph with the response data
+                    $('#dynamic-furigana').html(data);
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+
+        // Call the function to fetch data when the page loads
+        fetchEnglishTranslation();
+        fetchFurigana();
+    });
+    </script>
+    <style>
+        /* Add your CSS styling for the loading text here */
+        /* Style the button */
+        .custom-button {
+            font-size: 20px; /* Set the font size to 20 pixels */
+            font-family: Arial, sans-serif; /* Set the font family */
+            padding: 5px 10px; /* Add some padding for a larger button */
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h3>Japanese Story:</h3>
+    <p style="font-size: 20px;">{{ result.japaneseStory }}</p>
+    <h3>Japanese Story with Furigana:</h3>
+    <p id="dynamic-furigana" style="font-size: 20px;">あの。。。えと。。。</p>
+    <h3>English Translation:</h3>
+    <p id="dynamic-english" style="font-size: 20px;">Thinking ...</p>
+    <a href="./">
+        <button class="custom-button">Go Home</button>
+    </a>
+</body>
+</html>

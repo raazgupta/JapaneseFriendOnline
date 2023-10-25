@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>You Say</title>
+    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        // Define a function to make the API request for English Translation
+        function fetchEnglishTranslation() {
+            $.ajax({
+                url: '/conversationEnglishTranslation',  // Replace with the actual API endpoint
+                // url: '/App/JapaneseFriendOnline/conversationEnglishTranslation',
+                method: 'GET',              // Use 'GET' or 'POST' based on your API
+                success: function(data) {
+                    // Update the content of the paragraph with the response data
+                    $('#dynamic-english').text(data);
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+        // Define a function to make the API request for Spell/Grammar checking
+        function fetchSpellGrammarCheck() {
+            $.ajax({
+                url: '/conversationSpellGrammarCheck',  // Replace with the actual API endpoint
+                // url: '/App/JapaneseFriendOnline/conversationSpellGrammarCheck',
+                method: 'GET',              // Use 'GET' or 'POST' based on your API
+                success: function(data) {
+                    // Update the content of the paragraph with the response data
+                    $('#dynamic-spelling-check').html(data);
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+        // Define a function to make the API request for showing　the furigana in the Response
+        function fetchFuriganaResponse() {
+            $.ajax({
+                url: '/conversationFuriganaResponse',  // Replace with the actual API endpoint
+                // url: '/App/JapaneseFriendOnline/conversationFuriganaResponse',
+                method: 'GET',              // Use 'GET' or 'POST' based on your API
+                success: function(data) {
+                    // Update the content of the paragraph with the response data
+                    $('#dynamic-response').html(data);
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+
+        // Call the function to fetch data when the page loads
+        fetchEnglishTranslation();
+        fetchSpellGrammarCheck();
+        fetchFuriganaResponse();
+    });
+    </script>
+    <style>
+        /* Style the button */
+        .custom-button {
+            font-size: 20px; /* Set the font size to 20 pixels */
+            font-family: Arial, sans-serif; /* Set the font family */
+            padding: 5px 10px; /* Add some padding for a larger button */
+            border-radius: 5px;
+            margin-top: 10px; /* Adjust the margin as needed */
+            margin-right: 10px; /* Adjust the margin as needed */
+        }
+        #youSayText {
+            width: 100%;
+            height: 3em; /* 3 lines */
+        }
+    </style>
+</head>
+<body>
+    <h1>You Say</h1>
+    <h3>Spelling and Grammar suggestion:</h3>
+    <p id="dynamic-spelling-check" style="font-size: 20px;">あの。。。えと。。。</p>
+    <h3>Response:</h3>
+    <p id="dynamic-response" style="font-size: 20px;">{{ result.youSayText }}</p>
+    <h3>English Translation:</h3>
+    <p id="dynamic-english" style="font-size: 20px;">Thinking...</p>
+    <form id="youSayForm" method="POST" action="./youSay">
+        <button class="custom-button">Continue</button>
+    </form>
+    <!-- Add a line break to move the second button to a new line -->
+    <br>
+    <a href="./">
+        <button class="custom-button">Go Home</button>
+    </a>
+</body>
+</html>
