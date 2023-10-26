@@ -489,7 +489,7 @@ def conversationEnglishTranslation():
 @app.route('/conversationSpellGrammarCheck')
 def conversationSpellGrammarCheck():
     iSayText = session['iSayText']
-    iSayTextReviewed = withFuriganaHTMLParagraph(iSayText)
+    iSayTextReviewed = withFuriganaHTMLParagraph(correctSpellingGrammar(iSayText))
     return iSayTextReviewed
 
 @app.route('/conversationFuriganaResponse')
