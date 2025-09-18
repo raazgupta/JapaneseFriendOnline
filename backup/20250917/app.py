@@ -1,30 +1,25 @@
-from flask import Flask, render_template, session, redirect, request
-from openai import OpenAI
+# Import the activate_this.py script from the virtual environment
+activate_this = '/home/public/App/JapaneseFriendOnline/venv/bin/activate_this.py'
+with open(activate_this) as file_:
+    exec(file_.read(), dict(__file__=activate_this))
+
+from flask import Flask, render_template, session, redirect, url_for, request
+import openai
 import os
 import random
 from datetime import datetime
 import requests
 import time
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get('FLASK_SESSION_SECRET_KEY')
-
-openai_client = None
 
 
 def get_completion_from_messages(messages, model="gpt-4", temperature=0.0, max_tokens=500):
-    # Lazily initialize the OpenAI client so deployment environments without a key fail fast with a useful error.
-    global openai_client
-    if openai_client is None:
-        api_key = os.environ.get('OPENAI_API_KEY')
-        if not api_key:
-            raise RuntimeError('OPENAI_API_KEY environment variable is not set.')
-        openai_client = OpenAI(api_key=api_key)
+    openai.api_key = os.environ.get('OPENAI_API_KEY')
     # print("Get completion message: ", messages)
     start_time = time.time()
-    response = openai_client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model=model,
         messages=messages,
         temperature=temperature,
@@ -34,7 +29,7 @@ def get_completion_from_messages(messages, model="gpt-4", temperature=0.0, max_t
     elapsed_time = end_time - start_time
     print(messages)
     print(f"ChatGPT response time: {elapsed_time:.2f} seconds.")
-    return response.choices[0].message.content
+    return response.choices[0].message["content"]
 
 def get_response_from_wanikani(url_end = ""):
     api_url = "https://api.wanikani.com/v2/" + url_end
@@ -425,12 +420,12 @@ def ankiRecord():
     session['selected_words_position'] = selected_words_position + 1
 
     if (selected_words_position + 1) < len(selected_words):
-        return redirect('anki')
-        # return redirect('/App/JapaneseFriendOnline/anki')
+        # return redirect(url_for('anki', _external=False))
+        return redirect('/App/JapaneseFriendOnline/anki')
     else:
         # Show the English Translation
-        return redirect('englishTranslationDynamic')
-        # return redirect('/App/JapaneseFriendOnline/englishTranslationDynamic')
+        # return redirect(url_for('englishTranslationDynamic', _external=False))
+        return redirect('/App/JapaneseFriendOnline/englishTranslationDynamic')
 
 @app.route('/japaneseConversation', methods=['POST'])
 def japaneseConversation():

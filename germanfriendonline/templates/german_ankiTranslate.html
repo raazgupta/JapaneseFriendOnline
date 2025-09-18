@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Vocabulary Translation</title>
+
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            // Poll server for prefetch status/results and update the UI when ready
+            const wordEl = $('#dynamic-anki-word-english');
+            const sentenceEl = $('#dynamic-anki-sentence-english');
+
+            let sentenceFallbackTried = false;
+            function poll() {
+                $.ajax({
+                    url: 'anki_poll',
+                    method: 'GET',
+                    success: function(data) {
+                        if (data.word_status === 'done' && data.word_translation) {
+                            // Preserve the number prefix already rendered on the page
+                            const current = wordEl.text();
+                            const numberPrefix = current.split(':')[0];
+                            wordEl.text(numberPrefix + ': ' + data.word_translation);
+                        }
+                        if (data.word_status === 'error' && data.word_translation) {
+                            const current = wordEl.text();
+                            const numberPrefix = current.split(':')[0];
+                            wordEl.text(numberPrefix + ': ' + data.word_translation);
+                        }
+                        if (data.sentence_status === 'done' && data.sentence_translation) {
+                            sentenceEl.text(data.sentence_translation);
+                        }
+
+                        // Stop if both done
+                        if ((data.word_status === 'done' || data.word_status === 'error') && (data.sentence_status === 'done' || data.sentence_status === 'error')) {
+                            clearInterval(timer);
+                            return;
+                        }
+
+                        // If sentence errored, fallback to direct endpoint once
+                        if (data.sentence_status === 'error' && !sentenceFallbackTried) {
+                            sentenceFallbackTried = true;
+                            $.ajax({
+                                url: 'ankiSentenceEnglish',
+                                method: 'GET',
+                                success: function(txt) {
+                                    sentenceEl.text(txt);
+                                    // We consider it resolved; stop polling
+                                    clearInterval(timer);
+                                },
+                                error: function(err) {
+                                    console.error('Fallback sentence translation failed:', err);
+                                    clearInterval(timer);
+                                }
+                            });
+                        }
+                    },
+                    error: function(err) {
+                        console.error('Error polling translation status:', err);
+                    }
+                });
+            }
+
+            const timer = setInterval(poll, 1500);
+
+            const form = document.getElementById('translate-form');
+            const loading = document.getElementById('loading');
+            form.addEventListener('submit', function () {
+                if ({{ result.final_word }} === 1) {
+                    loading.style.display = 'block';
+                }
+            });
+        });
+    </script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 1em;
+            background: linear-gradient(to bottom right, #fffefc, #fdf6e3);
+            color: #1a202c;
+        }
+
+        h1 {
+            font-size: 30px;
+            text-align: center;
+            color: #000000;
+            margin-bottom: 1em;
+            text-shadow: 1px 1px #fbbf24;
+        }
+
+        p {
+            font-size: 26px;
+            text-align: center;
+            margin: 1em 0;
+        }
+
+        .custom-button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            background-color: #fbbf24; /* Gold */
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+
+        .custom-button:hover {
+            background-color: #ef4444; /* Red */
+            color: white;
+            transform: scale(1.05);
+        }
+
+        form {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 1.5em;
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            font-style: italic;
+            color: #ef4444;
+            margin-top: 1.5em;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 24px;
+            }
+
+            p {
+                font-size: 22px;
+            }
+
+            .custom-button {
+                font-size: 16px;
+                width: 90%;
+            }
+
+            form {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Vocabulary Translation 🇩🇪</h1>
+
+    <p id="dynamic-anki-word-english">{{ result.number }}: {{ result.translation }}</p>
+    <p id="dynamic-anki-sentence-english">{{ result.sentence_translation }}</p>
+
+    <form id="translate-form" method="POST" action="ankiRecord">
+        <button type="submit" class="custom-button" name="frequency" value="{{ result.frequency1 }}">
+            {{ result.frequency1_display }}
+        </button>
+
+        <button type="submit" class="custom-button" name="frequency" value="{{ result.frequency2 }}">
+            {{ result.frequency2_display }}
+        </button>
+    </form>
+
+    <div id="loading">
+        🕒 Crafting your German story (~1–2 minutes) and English translation. Hang tight!
+    </div>
+
+</body>
+</html>

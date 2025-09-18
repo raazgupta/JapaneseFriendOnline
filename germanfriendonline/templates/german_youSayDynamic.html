@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>You Say</title>
+
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        const englishTranslationUrl = "conversationEnglishTranslation";
+        const spellGrammarCheckUrl = "conversationSpellGrammarCheck";
+
+        $(document).ready(function () {
+            $.ajax({
+                url: spellGrammarCheckUrl,
+                method: 'GET',
+                success: function (data) {
+                    $('#dynamic-spelling-check').text(data);
+                },
+                error: function (err) {
+                    console.error('Error fetching spelling/grammar check:', err);
+                }
+            });
+
+            $.ajax({
+                url: englishTranslationUrl,
+                method: 'GET',
+                success: function (data) {
+                    $('#dynamic-english').text(data);
+                },
+                error: function (err) {
+                    console.error('Error fetching English translation:', err);
+                }
+            });
+        });
+    </script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 1em;
+            background: linear-gradient(to bottom right, #fffefc, #fdf6e3);
+            color: #1a202c;
+        }
+
+        h1 {
+            font-size: 28px;
+            text-align: center;
+            color: #000;
+            margin-bottom: 1em;
+            text-shadow: 1px 1px #fbbf24;
+        }
+
+        h3 {
+            font-size: 22px;
+            margin-top: 1.5em;
+            text-align: center;
+            color: #ef4444;
+        }
+
+        p {
+            font-size: 20px;
+            margin: 0.5em 0 1em;
+            padding: 0 1em;
+            text-align: center;
+        }
+
+        .custom-button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background-color: #fbbf24;
+            color: #000;
+            margin: 1em auto 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            display: block;
+        }
+
+        .custom-button:hover {
+            background-color: #ef4444;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 24px;
+            }
+
+            h3 {
+                font-size: 20px;
+            }
+
+            p {
+                font-size: 18px;
+            }
+
+            .custom-button {
+                width: 90%;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>You Say 🇩🇪</h1>
+
+    <h3>Spelling and Grammar Suggestion:</h3>
+    <p id="dynamic-spelling-check">naja ...</p>
+
+    <h3>Response:</h3>
+    <p id="dynamic-response">{{ result.youSayText }}</p>
+
+    <h3>English Translation:</h3>
+    <p id="dynamic-english">thinking...</p>
+
+    <form id="youSayForm" method="POST" action="youSay">
+        <button class="custom-button">🗨️ Continue</button>
+    </form>
+
+    <a href="./">
+        <button class="custom-button">🏠 Go Home</button>
+    </a>
+
+</body>
+</html>

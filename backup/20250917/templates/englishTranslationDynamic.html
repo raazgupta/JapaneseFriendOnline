@@ -5,13 +5,11 @@
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-    const englishTranslationUrl = 'ankiEnglishTranslation';
-    const furiganaUrl = 'ankiFurigana';
     $(document).ready(function() {
         // Define a function to make the API request for English Translation
         function fetchEnglishTranslation() {
             $.ajax({
-                url: englishTranslationUrl,  // Endpoint resolved via Flask for local/server
+                url: '/App/JapaneseFriendOnline/ankiEnglishTranslation',  // Replace with the actual API endpoint
                 method: 'GET',              // Use 'GET' or 'POST' based on your API
                 success: function(data) {
                     // Update the content of the paragraph with the response data
@@ -25,7 +23,7 @@
         // Define a function to make the API request for showing　the furigana
         function fetchFurigana() {
             $.ajax({
-                url: furiganaUrl,
+                url: '/App/JapaneseFriendOnline/ankiFurigana',  // Replace with the actual API endpoint
                 method: 'GET',              // Use 'GET' or 'POST' based on your API
                 success: function(data) {
                     // Update the content of the paragraph with the response data

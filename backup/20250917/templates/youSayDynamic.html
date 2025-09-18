@@ -5,14 +5,11 @@
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-    const englishTranslationUrl = 'conversationEnglishTranslation';
-    const spellGrammarCheckUrl = 'conversationSpellGrammarCheck';
-    const furiganaResponseUrl = 'conversationFuriganaResponse';
     $(document).ready(function() {
         // Define a function to make the API request for English Translation
         function fetchEnglishTranslation() {
             $.ajax({
-                url: englishTranslationUrl,  // Endpoint resolved via Flask for local/server
+                url: '/App/JapaneseFriendOnline/conversationEnglishTranslation',  // Replace with the actual API endpoint
                 method: 'GET',              // Use 'GET' or 'POST' based on your API
                 success: function(data) {
                     // Update the content of the paragraph with the response data
@@ -26,7 +23,7 @@
         // Define a function to make the API request for Spell/Grammar checking
         function fetchSpellGrammarCheck() {
             $.ajax({
-                url: spellGrammarCheckUrl,
+                url: '/App/JapaneseFriendOnline/conversationSpellGrammarCheck',  // Replace with the actual API endpoint
                 method: 'GET',              // Use 'GET' or 'POST' based on your API
                 success: function(data) {
                     // Update the content of the paragraph with the response data
@@ -40,7 +37,7 @@
         // Define a function to make the API request for showing　the furigana in the Response
         function fetchFuriganaResponse() {
             $.ajax({
-                url: furiganaResponseUrl,
+                url: '/App/JapaneseFriendOnline/conversationFuriganaResponse',  // Replace with the actual API endpoint
                 method: 'GET',              // Use 'GET' or 'POST' based on your API
                 success: function(data) {
                     // Update the content of the paragraph with the response data

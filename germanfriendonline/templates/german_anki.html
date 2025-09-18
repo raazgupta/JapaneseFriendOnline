@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Vocabulary Review</title>
+
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        const ankiSentenceUrl = "ankiSentence";
+
+        $(document).ready(function() {
+            // Fetch the German sentence for the current word
+            $.ajax({
+                url: ankiSentenceUrl,
+                method: 'GET',
+                success: function(data) {
+                    $('#dynamic-anki-sentence').text(data);
+                    // Kick off background prefetch of translations while the user reviews
+                    $.ajax({
+                        url: 'anki_prefetch',
+                        method: 'POST',
+                        success: function(_) {},
+                        error: function(err) {
+                            console.error('Error starting prefetch:', err);
+                        }
+                    });
+                },
+                error: function(err) {
+                    console.error('Error fetching Anki sentence:', err);
+                }
+            });
+        });
+    </script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 1em;
+            background: linear-gradient(to bottom right, #fffefc, #fdf6e3);
+            color: #1a202c;
+        }
+
+        h1 {
+            font-size: 30px;
+            text-align: center;
+            color: #000000;
+            margin-bottom: 1em;
+            text-shadow: 1px 1px #fbbf24;
+        }
+
+        p {
+            font-size: 26px;
+            text-align: center;
+            margin: 0.8em 0;
+        }
+
+        .custom-button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background-color: #fbbf24; /* Gold */
+            color: #000;
+            display: block;
+            margin: 1.5em auto;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+
+        .custom-button:hover {
+            background-color: #ef4444; /* Red */
+            color: white;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 24px;
+            }
+
+            p {
+                font-size: 22px;
+            }
+
+            .custom-button {
+                width: 90%;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Vocabulary Review 🇩🇪</h1>
+
+    <p>{{ result.number }}: {{ result.wort }}</p>
+
+    <p id="dynamic-anki-sentence">Loading sentence…</p>
+
+    <form method="POST" action="ankiTranslate">
+        <button type="submit" class="custom-button">🔍 Translation</button>
+    </form>
+
+</body>
+</html>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Vocabulary Review</title>
+    <title>Hiragana and English Translation</title>
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
     <style>
         /* Add your CSS styling for the loading text here */
@@ -15,10 +15,14 @@
     </style>
 </head>
 <body>
-    <h1>Vocabulary Review:</h1>
-    <p style="font-size: 20px;">{{ result.number }}: {{ result.wort }}</p>
-    <form method="POST" action="./ankiTranslate">
-        <button type="submit" class="custom-button">Translation</button>
-    </form>
+    <h3>Japanese Story:</h3>
+    <p style="font-size: 20px;">{{ result.japaneseStory }}</p>
+    <h3>Hiragana:</h3>
+    {{ result.hiraganaStory | safe }}
+    <h3>English Translation:</h3>
+    <p style="font-size: 20px;">{{ result.englishStory }}</p>
+    <a href="./">
+        <button class="custom-button">Go Home</button>
+    </a>
 </body>
 </html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Vocabulary Practice & German Story</title>
+
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        const ankiSentencesUrl = "ankiSentencesResponse";
+
+        $(document).ready(function() {
+            function fetchAnkiSentencesResponse() {
+                $.ajax({
+                    url: ankiSentencesUrl,
+                    method: 'GET',
+                    success: function(data) {
+                        $('#practice_vocabulary_button').show();
+                        $('#patient_text').hide();
+                    },
+                    error: function(err) {
+                        console.error('Error fetching sentences:', err);
+                    }
+                });
+            }
+
+            fetchAnkiSentencesResponse();
+        });
+    </script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 1em;
+            background: linear-gradient(to bottom right, #fffefc, #fdf6e3);
+            color: #1a202c;
+        }
+
+        .section-title {
+            font-size: 30px;
+            text-align: center;
+            color: #000;
+            margin-bottom: 1em;
+            text-shadow: 1px 1px #fbbf24;
+        }
+
+        .sub-section-title {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            color: #ef4444; /* Red for flair */
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 20px;
+            text-align: center;
+            margin: 0.4em 0;
+        }
+
+        .custom-button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background-color: #fbbf24;
+            color: #000;
+            cursor: pointer;
+            margin: 2em auto 1em;
+            display: block;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .custom-button:hover {
+            background-color: #ef4444;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        #patient_text {
+            text-align: center;
+            font-style: italic;
+            color: #ef4444;
+        }
+
+        @media (max-width: 600px) {
+            .section-title {
+                font-size: 24px;
+            }
+
+            .sub-section-title {
+                font-size: 20px;
+            }
+
+            p {
+                font-size: 18px;
+            }
+
+            .custom-button {
+                width: 90%;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 class="section-title">Vocabulary Practice & German Story 🇩🇪</h1>
+
+    <div class="sub-section-title">Progress so far:</div>
+
+    <p>Tomorrow: {{ result.numberTomorrow }}</p>
+    <p>Week:     {{ result.numberWeek     }}</p>
+    <p>Month:    {{ result.numberMonth    }}</p>
+    <p>3 Month:  {{ result.number3Month  }}</p>
+    <p>Burned:   {{ result.numberBurned   }}</p>
+    <p>Pending:  {{ result.numberPending  }}</p>
+    <p>Last Run: {{ result.lastRunDateTime }}</p>
+
+    <form method="POST" action="anki">
+        <button id="practice_vocabulary_button"
+                type="submit"
+                class="custom-button"
+                style="display:none">
+            🚀 Practice Vocabulary
+        </button>
+        <div id="patient_text">
+            🧩 Lining up your words and sentences… almost ready!
+        </div>
+    </form>
+
+</body>
+</html>

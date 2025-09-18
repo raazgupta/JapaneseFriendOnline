@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base href="./">
+    <meta charset="UTF-8" />
+    <!-- makes iOS launch this page in standalone when opened from the Home Screen -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta name="theme-color" content="#fbbf24"/>
+
+    <title>Story Scenario</title>
+
+    
+
+    <style>
+        html, body { height: 100%; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            /* safe areas so content isn’t under the notch/home bar in standalone */
+            padding: calc(1em + env(safe-area-inset-top)) 1em calc(1em + env(safe-area-inset-bottom)) 1em;
+            background: linear-gradient(to bottom right, #fffefc, #fdf6e3);
+            color: #1a202c;
+        }
+
+        h1 {
+            font-size: 28px;
+            text-align: center;
+            color: #000;
+            margin-bottom: 1em;
+            text-shadow: 1px 1px #fbbf24;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 6em;
+            font-size: 18px;
+            padding: 12px;
+            font-family: inherit;
+            border-radius: 8px;
+            border: 2px solid #000;
+            background-color: #fff5c2;
+            resize: vertical;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .custom-button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background-color: #fbbf24;
+            color: #000;
+            margin-top: 1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+        .custom-button:hover {
+            background-color: #ef4444;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 24px; }
+            textarea { font-size: 16px; }
+            .custom-button { width: 90%; font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Story Scenario 🇩🇪</h1>
+
+    <form method="POST" action="stats_and_start_anki">
+        <textarea id="scenarioText"
+                  name="scenarioText"
+                  placeholder="What should the story be about?"
+                  required></textarea>
+        <button type="submit" class="custom-button">✏️ Generate Story</button>
+    </form>
+
+</body>
+</html>

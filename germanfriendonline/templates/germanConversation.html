@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Scenario Page</title>
+
+    
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 1em;
+            background: linear-gradient(to bottom right, #fffefc, #fdf6e3);
+            color: #1a202c;
+        }
+
+        h1 {
+            font-size: 28px;
+            text-align: center;
+            color: #000;
+            margin-bottom: 1em;
+            text-shadow: 1px 1px #fbbf24;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 6em;
+            font-size: 18px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #000; /* black border */
+            background-color: #fff5c2; /* gold-ish background */
+            resize: vertical;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .custom-button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background-color: #fbbf24; /* gold */
+            color: #000;
+            margin-top: 1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+
+        .custom-button:hover {
+            background-color: #ef4444; /* red */
+            color: white;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 24px;
+            }
+
+            textarea {
+                font-size: 16px;
+            }
+
+            .custom-button {
+                width: 90%;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Describe Your Scenario 🇩🇪</h1>
+
+    <form method="POST" action="germanScenario">
+        <textarea id="scenarioText"
+                  name="scenarioText"
+                  placeholder="Enter your scenario here..."></textarea>
+        <button type="submit" class="custom-button">✍️ Submit Scenario</button>
+    </form>
+
+</body>
+</html>
