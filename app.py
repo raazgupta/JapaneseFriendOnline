@@ -1,4 +1,4 @@
-from flask import Flask, render_template, session, redirect, request
+from flask import Flask, render_template, session, redirect, request, jsonify
 from openai import OpenAI
 import os
 import random
@@ -6,38 +6,68 @@ from datetime import datetime
 import requests
 import time
 from werkzeug.middleware.proxy_fix import ProxyFix
+from threading import Thread
+import uuid
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get('FLASK_SESSION_SECRET_KEY')
 
 openai_client = None
+burned_story_jobs = {}
+
+BURNED_STORY_WAITING_MESSAGE = (
+    "Deep breaths - your burned wisdom is weaving a new tale. "
+    "Celebrate the kanji you have mastered while we compose the story. "
+    "Please enjoy this mindful pause. Generation may take three minutes."
+)
+
+FURIGANA_WAITING_MESSAGE = (
+    "Calm winds are guiding the readings into place. Your furigana will appear shortly."
+)
+
+ENGLISH_WAITING_MESSAGE = (
+    "The translation is unfolding gently. Stay present while the English version arrives."
+)
 
 
-def get_completion_from_messages(messages, model="gpt-4", temperature=0.0, max_tokens=500):
-    # Lazily initialize the OpenAI client so deployment environments without a key fail fast with a useful error.
+def ensure_openai_client():
+    """Lazily initialize the OpenAI client so failure surfaces early with a clear error."""
     global openai_client
     if openai_client is None:
         api_key = os.environ.get('OPENAI_API_KEY')
         if not api_key:
             raise RuntimeError('OPENAI_API_KEY environment variable is not set.')
         openai_client = OpenAI(api_key=api_key)
+    return openai_client
+
+
+def get_completion_from_messages(messages, model="gpt-5-nano", max_tokens=2000, reasoning_effort="minimal", verbosity=None):
+    # Lazily initialize the OpenAI client so deployment environments without a key fail fast with a useful error.
+    client = ensure_openai_client()
     # print("Get completion message: ", messages)
     start_time = time.time()
-    response = openai_client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    create_args = {
+        "model": model,
+        "input": messages,
+        "reasoning": {"effort": reasoning_effort},
+    }
+    if max_tokens is not None:
+        create_args["max_output_tokens"] = max_tokens
+    if verbosity is not None:
+        create_args["text"] = {"verbosity": verbosity}
+    response = client.responses.create(**create_args)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(messages)
     print(f"ChatGPT response time: {elapsed_time:.2f} seconds.")
-    return response.choices[0].message.content
+    return response.output_text
 
 def get_response_from_wanikani(url_end = ""):
-    api_url = "https://api.wanikani.com/v2/" + url_end
+    if url_end.startswith("http"):
+        api_url = url_end
+    else:
+        api_url = "https://api.wanikani.com/v2/" + url_end
     # print("WANIKANI API request:" + api_url )
 
     wanikani_api_key = os.environ.get('WANIKANI_API_KEY')
@@ -56,6 +86,182 @@ def get_response_from_wanikani(url_end = ""):
     else:
         print(f"Wanikani API Error: {response.status_code}")
         return None
+
+
+def get_reasoning_completion(messages, model="gpt-5"):
+    """Call the OpenAI GPT-5 reasoning model following the German app pattern."""
+    client = ensure_openai_client()
+    start_time = time.time()
+    response = client.responses.create(
+        model=model or "gpt-5",
+        input=messages,
+        reasoning={"effort": "medium"},
+    )
+    elapsed = time.time() - start_time
+    #print(messages)
+    print(f"Reasoning model response time: {elapsed:.2f} seconds.")
+    if hasattr(response, 'output_text') and response.output_text:
+        return response.output_text.strip()
+    raise RuntimeError('No text returned from reasoning model response.')
+
+
+def fetch_wanikani_assignments(subject_types, srs_stages):
+    """Fetch all assignment records for the given subject types and SRS stages."""
+    subject_types_param = ','.join(subject_types)
+    srs_param = ','.join(str(stage) for stage in srs_stages)
+    endpoint = f"assignments?subject_types={subject_types_param}&srs_stages={srs_param}"
+    assignments = []
+    next_url = endpoint
+    while next_url:
+        response_json = get_response_from_wanikani(next_url)
+        if not response_json:
+            break
+        assignments.extend(response_json.get('data', []))
+        next_url = response_json.get('pages', {}).get('next_url')
+    return assignments
+
+
+def fetch_wanikani_subjects(subject_ids):
+    """Fetch subject details for the provided subject identifiers."""
+    subjects = []
+    if not subject_ids:
+        return subjects
+    chunk_size = 100
+    for index in range(0, len(subject_ids), chunk_size):
+        chunk = subject_ids[index:index + chunk_size]
+        ids_param = ','.join(str(subject_id) for subject_id in chunk)
+        response_json = get_response_from_wanikani(f"subjects?ids={ids_param}")
+        if response_json:
+            subjects.extend(response_json.get('data', []))
+    return subjects
+
+
+def gather_burned_word_lists():
+    """Collect burned and almost burned vocabulary from WaniKani."""
+    assignments = fetch_wanikani_assignments(['vocabulary', 'kana_vocabulary'], [8, 9])
+    subject_ids = sorted({assignment['data']['subject_id'] for assignment in assignments})
+    subjects = fetch_wanikani_subjects(subject_ids)
+    burned_words = []
+    for subject in subjects:
+        data = subject.get('data', {})
+        characters = data.get('characters') or data.get('slug')
+        if characters:
+            burned_words.append(characters)
+    return burned_words
+
+
+def generate_burned_story_text(burned_words):
+    """Generate a Japanese story primarily using the provided burned words."""
+    if not burned_words:
+        raise RuntimeError('No burned vocabulary found in WaniKani data.')
+
+    user_prompt = f"""
+Write an interesting Japanese story.
+Can use any Proper Nouns including those that are in the Scenario text such as 'Katya'. 
+Write the story primarily using Nouns, Verbs and Adjectives that are in this list: {', '.join(burned_words)}.
+Keep the story constrained to 3 paragraphs.
+"""
+
+    messages = [
+        {'role': 'system', 'content': 'You are a helpful language teacher.'},
+        {'role': 'user', 'content': user_prompt.strip()}
+    ]
+
+    story_text = get_reasoning_completion(messages)
+    return story_text.strip()
+
+
+def _generate_furigana_for_job(job_id):
+    job = burned_story_jobs.get(job_id)
+    if not job or job.get('story_status') != 'done':
+        return
+    try:
+        html = withFuriganaHTMLParagraph(job.get('story', ''))
+        job['furigana'] = html
+        job['furigana_status'] = 'done'
+        job['furigana_error'] = None
+    except Exception as exc:
+        app.logger.exception('Furigana generation failed.')
+        job['furigana_status'] = 'error'
+        job['furigana_error'] = str(exc)
+
+
+def _generate_english_for_job(job_id):
+    job = burned_story_jobs.get(job_id)
+    if not job or job.get('story_status') != 'done':
+        return
+    try:
+        english = translateToEnglish(job.get('story', ''))
+        job['english'] = english
+        job['english_status'] = 'done'
+        job['english_error'] = None
+    except Exception as exc:
+        app.logger.exception('English translation failed.')
+        job['english_status'] = 'error'
+        job['english_error'] = str(exc)
+
+
+def _run_burned_story_job(job_id):
+    job = burned_story_jobs.get(job_id)
+    if not job:
+        return
+
+    try:
+        words = gather_burned_word_lists()
+        job['words'] = words
+        job['words_status'] = 'done'
+
+        if not words:
+            job['status'] = 'error'
+            job['story_status'] = 'error'
+            job['furigana_status'] = 'error'
+            job['english_status'] = 'error'
+            job['error'] = 'No burned vocabulary found yet. Please review and burn more words first.'
+            job['furigana_error'] = job['error']
+            job['english_error'] = job['error']
+            return
+
+        job['story_status'] = 'in_progress'
+        story = generate_burned_story_text(words)
+        job['story'] = story
+        job['story_status'] = 'done'
+        job['status'] = 'done'
+
+        # Kick off furigana and English translations in background threads
+        job['furigana_status'] = 'in_progress'
+        Thread(target=_generate_furigana_for_job, args=(job_id,), daemon=True).start()
+
+        job['english_status'] = 'in_progress'
+        Thread(target=_generate_english_for_job, args=(job_id,), daemon=True).start()
+    except Exception as exc:
+        app.logger.exception('Burned story generation failed.')
+        job['status'] = 'error'
+        job['story_status'] = 'error'
+        job['furigana_status'] = 'error'
+        job['english_status'] = 'error'
+        job['error'] = str(exc)
+        job['furigana_error'] = str(exc)
+        job['english_error'] = str(exc)
+
+
+def start_burned_story_job():
+    job_id = str(uuid.uuid4())
+    burned_story_jobs[job_id] = {
+        'status': 'in_progress',
+        'words_status': 'in_progress',
+        'words': [],
+        'story_status': 'pending',
+        'story': '',
+        'furigana_status': 'pending',
+        'furigana': '',
+        'furigana_error': None,
+        'english_status': 'pending',
+        'english': '',
+        'english_error': None,
+        'error': None,
+    }
+    Thread(target=_run_burned_story_job, args=(job_id,), daemon=True).start()
+    return job_id
 
 
 # Get assignments where levels=(1 to current level) and immediately available for review and subject_types=vocubulary
@@ -247,6 +453,42 @@ def japaneseStory():
 
     return render_template('japaneseStory.html', result = result_data)
 
+
+@app.route('/burnedStory', methods=['POST'])
+def burned_story():
+    job_id = start_burned_story_job()
+    return render_template(
+        'burnedStory.html',
+        job_id=job_id,
+        words=[],
+        initial_story=BURNED_STORY_WAITING_MESSAGE,
+        furigana_placeholder=FURIGANA_WAITING_MESSAGE,
+        english_placeholder=ENGLISH_WAITING_MESSAGE
+    )
+
+
+@app.route('/burnedStory/status/<job_id>')
+def burned_story_status(job_id):
+    job = burned_story_jobs.get(job_id)
+    if not job:
+        return jsonify({'status': 'unknown'}), 404
+
+    payload = {
+        'status': job.get('status', 'in_progress'),
+        'words_status': job.get('words_status'),
+        'words': job.get('words', []),
+        'story_status': job.get('story_status'),
+        'story': job.get('story', ''),
+        'furigana_status': job.get('furigana_status'),
+        'furigana': job.get('furigana', ''),
+        'english_status': job.get('english_status'),
+        'english': job.get('english', ''),
+        'error': job.get('error'),
+        'furigana_error': job.get('furigana_error'),
+        'english_error': job.get('english_error'),
+    }
+    return jsonify(payload)
+
 @app.route('/anki', methods=['POST','GET'])
 def anki():
 
@@ -302,7 +544,7 @@ def withFuriganaHTMLParagraph(japaneseStory):
     messages = [
         {'role': 'system',
          'content': f"""
-             You are given text in Japanese text. Convert it to an HTML paragraph. 
+             You are given a Japanese text. Convert it to an HTML paragraph. 
              Provide the Furigana characters above the Kanji characters using <ruby> blocks.
              The HTML paragraph should have font size of 30px. 
              """
@@ -325,7 +567,7 @@ def withFuriganaHTMLParagraph(japaneseStory):
          },
     '''
 
-    furiganaVersion = get_completion_from_messages(messages, model="gpt-4")
+    furiganaVersion = get_completion_from_messages(messages, model="gpt-5", reasoning_effort="medium", max_tokens=10000)
     # print(furiganaVersion)
     return furiganaVersion
 
@@ -341,7 +583,7 @@ def translateToEnglish(japaneseStory):
          }
     ]
 
-    englishVersion = get_completion_from_messages(messages, max_tokens=100)
+    englishVersion = get_completion_from_messages(messages, model="gpt-5-nano")
 
     return englishVersion
 

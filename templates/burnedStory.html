@@ -4,83 +4,335 @@
     <title>Burned Words Japanese Story</title>
     <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
     <style>
+        body {
+            margin: 20px;
+        }
         .custom-button {
             font-size: 20px;
             font-family: Arial, sans-serif;
             padding: 5px 10px;
             border-radius: 5px;
         }
-        .story-block {
-            font-size: 28px;
-            line-height: 1.5;
-            margin: 20px 0;
-        }
-        details {
-            margin-bottom: 16px;
-        }
-        summary {
-            cursor: pointer;
+        .message {
             font-size: 18px;
-            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
         }
-        .meta {
+        .hidden {
+            display: none;
+        }
+        .word-rotation {
+            text-align: center;
+            margin: 30px 0;
+            min-height: 60px;
+        }
+        .word-text {
+            font-size: 36px;
+            display: inline-block;
+            opacity: 0;
+        }
+        .fade-cycle {
+            animation: fadeCycle 5s ease-in-out forwards;
+        }
+        @keyframes fadeCycle {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-6px); }
+        }
+        .story-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .toggle-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .toggle-button {
+            padding: 6px 16px;
             font-size: 16px;
-            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 1px solid #888;
+            background-color: #2d2d2d;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
         }
-        .error {
-            color: #ffaaaa;
-            font-size: 20px;
+        .toggle-button.active {
+            background-color: #556cd6;
+            border-color: #7789ff;
+        }
+        .toggle-button:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+        .story-box {
+            margin: 0 auto;
+            max-width: 760px;
+            width: 100%;
+            max-height: calc(100vh - 240px);
+            overflow-y: auto;
+            padding: 16px;
+            border: 1px solid #555;
+            border-radius: 8px;
+            background-color: rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+            text-align: left;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            font-size: 24px;
+        }
+        @media (max-width: 600px) {
+            .word-text {
+                font-size: 30px;
+            }
+            .story-box {
+                font-size: 20px;
+                max-height: calc(100vh - 220px);
+            }
         }
     </style>
 </head>
 <body>
     <h1>Burned Words Japanese Story</h1>
-    <div class="meta">
-        {% if result.generated_at %}
-        <p>Generated at: {{ result.generated_at }}</p>
-        {% endif %}
-        {% if result.wanikani_meta %}
-        <p>Assignments scanned: {{ result.wanikani_meta.total_assignments }} | Unique subjects: {{ result.wanikani_meta.total_subjects }}</p>
-        {% endif %}
-        {% if result.limit_per_category %}
-        <p>Prompt word cap per category: {{ result.limit_per_category }}</p>
-        {% endif %}
+
+    <div id="waiting-message" class="message">{{ initial_story }}</div>
+    <div id="word-rotation" class="word-rotation hidden">
+        <span id="word-text" class="word-text"></span>
     </div>
 
-    {% if result.error %}
-        <p class="error">{{ result.error }}</p>
-    {% else %}
-        <div class="story-block">{{ result.story }}</div>
-        <details>
-            <summary>Nouns ({{ result.nouns|length }})</summary>
-            <p>{{ result.nouns | join('、') }}</p>
-        </details>
-        <details>
-            <summary>Verbs ({{ result.verbs|length }})</summary>
-            <p>{{ result.verbs | join('、') }}</p>
-        </details>
-        <details>
-            <summary>Adjectives ({{ result.adjectives|length }})</summary>
-            <p>{{ result.adjectives | join('、') }}</p>
-        </details>
-        {% if result.kanji %}
-        <details>
-            <summary>Kanji ({{ result.kanji|length }})</summary>
-            <p>{{ result.kanji | join('、') }}</p>
-        </details>
-        {% endif %}
-        {% if result.truncation_notes %}
-        <div class="meta">
-            {% if result.truncation_notes.nouns %}<p>Nouns list truncated for prompt length.</p>{% endif %}
-            {% if result.truncation_notes.verbs %}<p>Verbs list truncated for prompt length.</p>{% endif %}
-            {% if result.truncation_notes.adjectives %}<p>Adjectives list truncated for prompt length.</p>{% endif %}
-            {% if result.truncation_notes.kanji %}<p>Kanji list truncated for prompt length.</p>{% endif %}
+    <div id="story-container" class="story-container hidden">
+        <div class="toggle-buttons">
+            <button class="toggle-button active" data-view="kanji">Kanji</button>
+            <button class="toggle-button" data-view="furigana">Furigana</button>
+            <button class="toggle-button" data-view="english">English</button>
         </div>
-        {% endif %}
-    {% endif %}
+        <div id="story-box" class="story-box"></div>
+    </div>
 
-    <form method="GET" action="/">
+    <form method="GET" action="/" style="margin-top: 24px; text-align: center;">
         <button type="submit" class="custom-button">Back to Home</button>
     </form>
+
+    <script>
+        const jobId = {{ job_id | tojson }};
+        const furiganaPlaceholder = {{ furigana_placeholder | tojson }};
+        const englishPlaceholder = {{ english_placeholder | tojson }};
+        const waitingMessageEl = document.getElementById('waiting-message');
+        const wordRotationEl = document.getElementById('word-rotation');
+        const wordTextEl = document.getElementById('word-text');
+        const storyContainer = document.getElementById('story-container');
+        const storyBox = document.getElementById('story-box');
+        const toggleButtons = Array.from(document.querySelectorAll('.toggle-button'));
+
+        const state = {
+            words: [],
+            wordTimer: null,
+            rotationActive: false,
+            storyStatus: 'pending',
+            storyText: '',
+            furiganaStatus: 'pending',
+            furiganaHtml: '',
+            furiganaError: null,
+            englishStatus: 'pending',
+            englishText: '',
+            englishError: null,
+            jobStatus: 'in_progress',
+            jobError: null,
+            currentView: 'kanji'
+        };
+
+        function shouldContinuePolling() {
+            if (state.jobStatus === 'error') {
+                return false;
+            }
+            const storyDone = state.storyStatus === 'done';
+            const furiganaFinished = ['done', 'error'].includes(state.furiganaStatus);
+            const englishFinished = ['done', 'error'].includes(state.englishStatus);
+            if (storyDone && furiganaFinished && englishFinished) {
+                return false;
+            }
+            return true;
+        }
+
+        function setActiveButton(view) {
+            toggleButtons.forEach(btn => {
+                if (btn.dataset.view === view) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function setStoryBoxContent(content, useHTML = false) {
+            if (useHTML) {
+                storyBox.innerHTML = content;
+            } else {
+                storyBox.textContent = content;
+            }
+        }
+
+        function updateStoryBox() {
+            if (state.storyStatus !== 'done') {
+                return;
+            }
+
+            if (state.currentView === 'kanji') {
+                setStoryBoxContent(state.storyText || '');
+            } else if (state.currentView === 'furigana') {
+                if (state.furiganaStatus === 'done' && state.furiganaHtml) {
+                    setStoryBoxContent(state.furiganaHtml, true);
+                } else if (state.furiganaStatus === 'error') {
+                    setStoryBoxContent(state.furiganaError || 'Unable to load furigana.');
+                } else {
+                    setStoryBoxContent(furiganaPlaceholder);
+                }
+            } else if (state.currentView === 'english') {
+                if (state.englishStatus === 'done' && state.englishText) {
+                    setStoryBoxContent(state.englishText);
+                } else if (state.englishStatus === 'error') {
+                    setStoryBoxContent(state.englishError || 'Unable to load English translation.');
+                } else {
+                    setStoryBoxContent(englishPlaceholder);
+                }
+            }
+        }
+
+        function stopWordRotation() {
+            if (state.wordTimer) {
+                clearInterval(state.wordTimer);
+                state.wordTimer = null;
+            }
+            state.rotationActive = false;
+            wordRotationEl.classList.add('hidden');
+        }
+
+        function showRandomWord() {
+            if (!state.words.length) {
+                return;
+            }
+            const nextWord = state.words[Math.floor(Math.random() * state.words.length)];
+            wordTextEl.classList.remove('fade-cycle');
+            void wordTextEl.offsetWidth;
+            wordTextEl.textContent = nextWord;
+            wordTextEl.classList.add('fade-cycle');
+        }
+
+        function startWordRotationIfNeeded() {
+            if (!state.rotationActive && state.words.length) {
+                state.rotationActive = true;
+                wordRotationEl.classList.remove('hidden');
+                showRandomWord();
+                state.wordTimer = setInterval(showRandomWord, 5000);
+            }
+        }
+
+        function handleJobError(message) {
+            state.jobStatus = 'error';
+            state.jobError = message;
+            stopWordRotation();
+            if (waitingMessageEl) {
+                waitingMessageEl.textContent = message;
+            }
+        }
+
+        function revealStoryIfReady() {
+            if (state.storyStatus === 'done' && state.storyText) {
+                stopWordRotation();
+                if (waitingMessageEl) {
+                    waitingMessageEl.textContent = '';
+                }
+                storyContainer.classList.remove('hidden');
+                setActiveButton(state.currentView);
+                updateStoryBox();
+            }
+        }
+
+        function onToggleClick(event) {
+            const view = event.currentTarget.dataset.view;
+            if (!view || state.storyStatus !== 'done') {
+                return;
+            }
+            state.currentView = view;
+            setActiveButton(view);
+            updateStoryBox();
+        }
+
+        toggleButtons.forEach(btn => {
+            btn.addEventListener('click', onToggleClick);
+        });
+
+        function pollStatus() {
+            if (!jobId || state.jobStatus === 'error') {
+                return;
+            }
+
+            fetch(`/burnedStory/status/${jobId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Unable to check story status.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    state.jobStatus = data.status || state.jobStatus;
+
+                    if (data.error && state.storyStatus !== 'done') {
+                        handleJobError(data.error);
+                        return;
+                    }
+
+                    if (data.words_status === 'done' && Array.isArray(data.words) && !state.words.length) {
+                        state.words = data.words.slice();
+                        if (state.words.length === 0 && state.storyStatus !== 'done' && data.status === 'error') {
+                            handleJobError(data.error || 'No burned vocabulary available.');
+                            return;
+                        }
+                        startWordRotationIfNeeded();
+                    }
+
+                    if (data.story_status === 'done' && data.story && state.storyStatus !== 'done') {
+                        state.storyStatus = 'done';
+                        state.storyText = data.story;
+                        revealStoryIfReady();
+                    } else if (data.story_status === 'error' && state.storyStatus !== 'done') {
+                        handleJobError(data.error || 'Unable to generate story.');
+                        return;
+                    }
+
+                    if (data.furigana_status) {
+                        state.furiganaStatus = data.furigana_status;
+                        state.furiganaHtml = data.furigana || state.furiganaHtml;
+                        state.furiganaError = data.furigana_error || state.furiganaError;
+                    }
+
+                    if (data.english_status) {
+                        state.englishStatus = data.english_status;
+                        state.englishText = data.english || state.englishText;
+                        state.englishError = data.english_error || state.englishError;
+                    }
+
+                    if (state.storyStatus === 'done') {
+                        updateStoryBox();
+                    }
+
+                    if (shouldContinuePolling()) {
+                        setTimeout(pollStatus, 4000);
+                    }
+                })
+                .catch(error => {
+                    handleJobError(error.message);
+                });
+        }
+
+        if (jobId) {
+            pollStatus();
+        } else {
+            handleJobError('No burned vocabulary found yet. Please review and burn more words first.');
+        }
+    </script>
 </body>
 </html>
