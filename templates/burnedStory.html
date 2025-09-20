@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Burned Words Japanese Story</title>
+    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <style>
+        .custom-button {
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .story-block {
+            font-size: 28px;
+            line-height: 1.5;
+            margin: 20px 0;
+        }
+        details {
+            margin-bottom: 16px;
+        }
+        summary {
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .meta {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: #ffaaaa;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Burned Words Japanese Story</h1>
+    <div class="meta">
+        {% if result.generated_at %}
+        <p>Generated at: {{ result.generated_at }}</p>
+        {% endif %}
+        {% if result.wanikani_meta %}
+        <p>Assignments scanned: {{ result.wanikani_meta.total_assignments }} | Unique subjects: {{ result.wanikani_meta.total_subjects }}</p>
+        {% endif %}
+        {% if result.limit_per_category %}
+        <p>Prompt word cap per category: {{ result.limit_per_category }}</p>
+        {% endif %}
+    </div>
+
+    {% if result.error %}
+        <p class="error">{{ result.error }}</p>
+    {% else %}
+        <div class="story-block">{{ result.story }}</div>
+        <details>
+            <summary>Nouns ({{ result.nouns|length }})</summary>
+            <p>{{ result.nouns | join('、') }}</p>
+        </details>
+        <details>
+            <summary>Verbs ({{ result.verbs|length }})</summary>
+            <p>{{ result.verbs | join('、') }}</p>
+        </details>
+        <details>
+            <summary>Adjectives ({{ result.adjectives|length }})</summary>
+            <p>{{ result.adjectives | join('、') }}</p>
+        </details>
+        {% if result.kanji %}
+        <details>
+            <summary>Kanji ({{ result.kanji|length }})</summary>
+            <p>{{ result.kanji | join('、') }}</p>
+        </details>
+        {% endif %}
+        {% if result.truncation_notes %}
+        <div class="meta">
+            {% if result.truncation_notes.nouns %}<p>Nouns list truncated for prompt length.</p>{% endif %}
+            {% if result.truncation_notes.verbs %}<p>Verbs list truncated for prompt length.</p>{% endif %}
+            {% if result.truncation_notes.adjectives %}<p>Adjectives list truncated for prompt length.</p>{% endif %}
+            {% if result.truncation_notes.kanji %}<p>Kanji list truncated for prompt length.</p>{% endif %}
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <form method="GET" action="/">
+        <button type="submit" class="custom-button">Back to Home</button>
+    </form>
+</body>
+</html>
