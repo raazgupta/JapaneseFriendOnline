@@ -8,6 +8,8 @@ import time
 from werkzeug.middleware.proxy_fix import ProxyFix
 from threading import Thread
 import uuid
+import json
+import re
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -42,26 +44,22 @@ def ensure_openai_client():
     return openai_client
 
 
-def get_completion_from_messages(messages, model="gpt-5-nano", max_tokens=2000, reasoning_effort="minimal", verbosity=None):
-    # Lazily initialize the OpenAI client so deployment environments without a key fail fast with a useful error.
+def get_completion_from_messages(messages, model="gpt-5-nano", max_tokens=2000, reasoning_effort="minimal", verbosity="low"):
+    """Wrapper around OpenAI Responses API with optional chat completion fallback."""
     client = ensure_openai_client()
-    # print("Get completion message: ", messages)
-    start_time = time.time()
+
     create_args = {
         "model": model,
         "input": messages,
         "reasoning": {"effort": reasoning_effort},
+        "max_output_tokens": max_tokens,
+        "verbosity": verbosity,
     }
-    if max_tokens is not None:
-        create_args["max_output_tokens"] = max_tokens
-    if verbosity is not None:
-        create_args["text"] = {"verbosity": verbosity}
     response = client.responses.create(**create_args)
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(messages)
-    print(f"ChatGPT response time: {elapsed_time:.2f} seconds.")
-    return response.output_text
+
+    if hasattr(response, 'output_text') and response.output_text:
+        return response.output_text
+    raise RuntimeError('No text returned from Responses API call.')
 
 def get_response_from_wanikani(url_end = ""):
     if url_end.startswith("http"):
@@ -171,6 +169,69 @@ Keep the story constrained to 3 paragraphs.
     return story_text.strip()
 
 
+def extract_json_object(text):
+    text = (text or '').strip()
+    if not text:
+        raise ValueError('Empty response text.')
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                pass
+    raise ValueError('Unable to parse JSON from response text.')
+
+
+def generate_word_detail_via_model(word):
+    messages = [
+        {'role': 'system', 'content': 'You are a helpful Japanese language tutor.'},
+        {'role': 'user', 'content': (
+            "Provide the hiragana reading and a concise English meaning for the Japanese word "
+            f"'{word}'. Respond strictly as JSON with keys 'hiragana' and 'english'. "
+            "Use hiragana characters (no romaji) and keep the English to a short phrase."
+        )}
+    ]
+    response_text = get_completion_from_messages(
+        messages,
+        model='gpt-5-nano',
+        max_tokens=200,
+        reasoning_effort='minimal',
+        verbosity='low'
+    )
+    if not response_text:
+        raise RuntimeError('No output text returned for word detail.')
+    data = extract_json_object(response_text.strip())
+    hiragana = data.get('hiragana', '').strip()
+    english = data.get('english', '').strip()
+    if not hiragana or not english:
+        raise ValueError('Missing hiragana or english in response.')
+    return hiragana, english
+
+
+def _generate_word_detail(job_id, word):
+    job = burned_story_jobs.get(job_id)
+    if not job:
+        return
+    details = job['word_details'].get(word)
+    if not details or details.get('status') not in {'in_progress', 'pending'}:
+        return
+    try:
+        hiragana, english = generate_word_detail_via_model(word)
+        details['hiragana'] = hiragana
+        details['english'] = english
+        details['status'] = 'done'
+        details['error'] = None
+        details['thread_started'] = False
+    except Exception as exc:
+        app.logger.exception('Word detail generation failed for %s', word)
+        details['status'] = 'error'
+        details['error'] = ''
+        details['thread_started'] = False
+
+
 def _generate_furigana_for_job(job_id):
     job = burned_story_jobs.get(job_id)
     if not job or job.get('story_status') != 'done':
@@ -250,6 +311,7 @@ def start_burned_story_job():
         'status': 'in_progress',
         'words_status': 'in_progress',
         'words': [],
+        'word_details': {},
         'story_status': 'pending',
         'story': '',
         'furigana_status': 'pending',
@@ -477,6 +539,7 @@ def burned_story_status(job_id):
         'status': job.get('status', 'in_progress'),
         'words_status': job.get('words_status'),
         'words': job.get('words', []),
+        'word_details': job.get('word_details', {}),
         'story_status': job.get('story_status'),
         'story': job.get('story', ''),
         'furigana_status': job.get('furigana_status'),
@@ -488,6 +551,46 @@ def burned_story_status(job_id):
         'english_error': job.get('english_error'),
     }
     return jsonify(payload)
+
+
+@app.route('/burnedStory/word/<job_id>', methods=['POST'])
+def burned_story_word_detail(job_id):
+    job = burned_story_jobs.get(job_id)
+    if not job:
+        return jsonify({'status': 'unknown'}), 404
+
+    data = request.get_json(silent=True) or {}
+    word = data.get('word')
+    if not word:
+        return jsonify({'status': 'error', 'error': 'Missing word parameter.'}), 400
+
+    if job.get('words_status') != 'done' or word not in job.get('words', []):
+        return jsonify({'status': 'pending'}), 202
+
+    details = job['word_details'].get(word)
+    if not details:
+        details = {
+            'status': 'in_progress',
+            'hiragana': '',
+            'english': '',
+            'error': None,
+            'thread_started': True
+        }
+        job['word_details'][word] = details
+        Thread(target=_generate_word_detail, args=(job_id, word), daemon=True).start()
+    else:
+        if details.get('status') == 'pending':
+            details['status'] = 'in_progress'
+        if details.get('status') == 'in_progress' and not details.get('thread_started'):
+            details['thread_started'] = True
+            Thread(target=_generate_word_detail, args=(job_id, word), daemon=True).start()
+
+    response_payload = {
+        'status': details.get('status'),
+        'hiragana': details.get('hiragana', ''),
+        'english': details.get('english', '')
+    }
+    return jsonify(response_payload)
 
 @app.route('/anki', methods=['POST','GET'])
 def anki():
