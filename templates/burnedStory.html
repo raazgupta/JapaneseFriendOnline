@@ -31,8 +31,22 @@
             display: inline-block;
             opacity: 0;
         }
+        .word-subtext {
+            display: block;
+            font-size: 22px;
+            margin-top: 8px;
+            opacity: 0.85;
+            min-height: 28px;
+        }
+        .word-english {
+            font-size: 20px;
+            opacity: 0.8;
+        }
         .fade-cycle {
-            animation: fadeCycle 5s ease-in-out forwards;
+            animation: fadeCycle 30s ease-in-out forwards;
+        }
+        .fade-cycle-translation {
+            animation: fadeCycle 15s ease-in-out forwards;
         }
         @keyframes fadeCycle {
             0% { opacity: 0; transform: translateY(10px); }
@@ -101,6 +115,8 @@
     <div id="waiting-message" class="message">{{ initial_story }}</div>
     <div id="word-rotation" class="word-rotation hidden">
         <span id="word-text" class="word-text"></span>
+        <span id="word-hiragana" class="word-subtext"></span>
+        <span id="word-english" class="word-subtext word-english"></span>
     </div>
 
     <div id="story-container" class="story-container hidden">
@@ -123,14 +139,24 @@
         const waitingMessageEl = document.getElementById('waiting-message');
         const wordRotationEl = document.getElementById('word-rotation');
         const wordTextEl = document.getElementById('word-text');
+        const wordHiraganaEl = document.getElementById('word-hiragana');
+        const wordEnglishEl = document.getElementById('word-english');
         const storyContainer = document.getElementById('story-container');
         const storyBox = document.getElementById('story-box');
         const toggleButtons = Array.from(document.querySelectorAll('.toggle-button'));
 
         const state = {
             words: [],
-            wordTimer: null,
+            wordDetails: {},
+            wordDetailInFlight: {},
+            wordDetailRetryTimers: {},
             rotationActive: false,
+            wordTimerHandle: null,
+            translationTimerHandle: null,
+            translationRevealed: false,
+            translationRevealPending: false,
+            currentWord: null,
+            nextWord: null,
             storyStatus: 'pending',
             storyText: '',
             furiganaStatus: 'pending',
@@ -201,33 +227,272 @@
             }
         }
 
-        function stopWordRotation() {
-            if (state.wordTimer) {
-                clearInterval(state.wordTimer);
-                state.wordTimer = null;
+        function clearWordDetailRetry(word) {
+            if (state.wordDetailRetryTimers[word]) {
+                clearTimeout(state.wordDetailRetryTimers[word]);
+                delete state.wordDetailRetryTimers[word];
             }
-            state.rotationActive = false;
-            wordRotationEl.classList.add('hidden');
         }
 
-        function showRandomWord() {
-            if (!state.words.length) {
+        function scheduleWordDetailRetry(word, delay = 1500) {
+            clearWordDetailRetry(word);
+            state.wordDetailRetryTimers[word] = setTimeout(() => {
+                requestWordDetail(word);
+            }, delay);
+        }
+
+        function clearTranslationTimer() {
+            if (state.translationTimerHandle) {
+                clearTimeout(state.translationTimerHandle);
+                state.translationTimerHandle = null;
+            }
+        }
+
+        function resetTranslationDisplay() {
+            state.translationRevealed = false;
+            state.translationRevealPending = false;
+            clearTranslationTimer();
+            wordHiraganaEl.textContent = '';
+            wordEnglishEl.textContent = '';
+            wordHiraganaEl.classList.remove('fade-cycle-translation');
+            wordEnglishEl.classList.remove('fade-cycle-translation');
+            wordHiraganaEl.style.opacity = '0';
+            wordEnglishEl.style.opacity = '0';
+        }
+
+        function restartTranslationAnimation(element) {
+            if (!element) {
                 return;
             }
-            const nextWord = state.words[Math.floor(Math.random() * state.words.length)];
+            element.classList.remove('fade-cycle-translation');
+            // Trigger reflow to restart animation
+            void element.offsetWidth;
+            element.style.opacity = '';
+            element.classList.add('fade-cycle-translation');
+        }
+
+        function scheduleTranslationReveal() {
+            clearTranslationTimer();
+            state.translationTimerHandle = setTimeout(() => {
+                revealWordDetails();
+            }, 15000);
+        }
+
+        function revealWordDetails() {
+            state.translationTimerHandle = null;
+            state.translationRevealed = true;
+            state.translationRevealPending = true;
+            updateWordDetailDisplay();
+        }
+
+        function updateWordDetailDisplay() {
+            if (!state.currentWord) {
+                wordTextEl.textContent = '';
+                wordHiraganaEl.textContent = '';
+                wordEnglishEl.textContent = '';
+                return;
+            }
+
+            const detail = state.wordDetails[state.currentWord];
+            if (!detail || detail.status === 'in_progress' || detail.status === 'pending') {
+                wordHiraganaEl.textContent = '';
+                wordEnglishEl.textContent = '';
+                return;
+            }
+
+            if (detail.status === 'error') {
+                wordHiraganaEl.textContent = '';
+                wordEnglishEl.textContent = '';
+                state.translationRevealPending = false;
+                return;
+            }
+
+            if (!state.translationRevealed) {
+                return;
+            }
+
+            wordHiraganaEl.textContent = detail.hiragana || '';
+            wordEnglishEl.textContent = detail.english || '';
+
+            if (state.translationRevealPending) {
+                restartTranslationAnimation(wordHiraganaEl);
+                restartTranslationAnimation(wordEnglishEl);
+                state.translationRevealPending = false;
+            }
+        }
+
+        function animateWordText(word) {
             wordTextEl.classList.remove('fade-cycle');
+            // Trigger reflow to restart animation
             void wordTextEl.offsetWidth;
-            wordTextEl.textContent = nextWord;
+            wordTextEl.textContent = word;
             wordTextEl.classList.add('fade-cycle');
         }
 
-        function startWordRotationIfNeeded() {
-            if (!state.rotationActive && state.words.length) {
-                state.rotationActive = true;
-                wordRotationEl.classList.remove('hidden');
-                showRandomWord();
-                state.wordTimer = setInterval(showRandomWord, 5000);
+        function pickRandomWord(excludeWord) {
+            if (!state.words.length) {
+                return null;
             }
+            const available = state.words.filter(word => word !== excludeWord && state.wordDetails[word]?.status !== 'error');
+            let pool = available.length ? available : state.words.filter(word => word !== excludeWord);
+            if (!pool.length) {
+                pool = state.words.slice();
+            }
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        function displayWord(word) {
+            if (!word) {
+                return;
+            }
+            resetTranslationDisplay();
+            animateWordText(word);
+            updateWordDetailDisplay();
+            scheduleTranslationReveal();
+        }
+
+        function ensureWordDetail(word) {
+            if (!word) {
+                return;
+            }
+            const detail = state.wordDetails[word];
+            if (detail) {
+                if (detail.status === 'error') {
+                    if (state.currentWord === word) {
+                        resetTranslationDisplay();
+                        setTimeout(() => advanceWordRotation(), 0);
+                    }
+                    return;
+                }
+                if (detail.status === 'done') {
+                    if (state.currentWord === word) {
+                        updateWordDetailDisplay();
+                    }
+                    return;
+                }
+            }
+            if (state.wordDetailInFlight[word]) {
+                return;
+            }
+            requestWordDetail(word);
+        }
+
+        function requestWordDetail(word) {
+            if (!word) {
+                return;
+            }
+            state.wordDetailInFlight[word] = true;
+            fetch(`/burnedStory/word/${jobId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ word })
+            })
+                .then(response => {
+                    if (response.status === 202) {
+                        state.wordDetailInFlight[word] = false;
+                        scheduleWordDetailRetry(word, 1500);
+                        return response.json().catch(() => null);
+                    }
+                    if (!response.ok) {
+                        throw new Error('Unable to fetch word details.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    state.wordDetailInFlight[word] = false;
+                    if (!data) {
+                        return;
+                    }
+                    const detailEntry = {
+                        status: data.status,
+                        hiragana: data.hiragana || '',
+                        english: data.english || ''
+                    };
+                    state.wordDetails[word] = detailEntry;
+                    if (detailEntry.status === 'error') {
+                        clearWordDetailRetry(word);
+                        if (state.currentWord === word) {
+                            resetTranslationDisplay();
+                            setTimeout(() => advanceWordRotation(), 0);
+                        }
+                        return;
+                    }
+                    if (detailEntry.status === 'in_progress' || detailEntry.status === 'pending') {
+                        scheduleWordDetailRetry(word, 1500);
+                    } else {
+                        clearWordDetailRetry(word);
+                        if (state.currentWord === word) {
+                            updateWordDetailDisplay();
+                        }
+                    }
+                })
+                .catch(() => {
+                    state.wordDetailInFlight[word] = false;
+                    clearWordDetailRetry(word);
+                    state.wordDetails[word] = { status: 'error', hiragana: '', english: '' };
+                    if (state.currentWord === word) {
+                        resetTranslationDisplay();
+                        setTimeout(() => advanceWordRotation(), 0);
+                    }
+                });
+        }
+
+        function scheduleNextRotation() {
+            if (state.wordTimerHandle) {
+                clearTimeout(state.wordTimerHandle);
+            }
+            state.wordTimerHandle = setTimeout(() => {
+                advanceWordRotation();
+            }, 30000);
+        }
+
+        function advanceWordRotation() {
+            if (!state.rotationActive) {
+                return;
+            }
+            const nextWord = state.nextWord || pickRandomWord(state.currentWord);
+            if (!nextWord) {
+                return;
+            }
+            state.currentWord = nextWord;
+            state.nextWord = pickRandomWord(state.currentWord);
+            displayWord(state.currentWord);
+            ensureWordDetail(state.currentWord);
+            if (state.nextWord) {
+                ensureWordDetail(state.nextWord);
+            }
+            scheduleNextRotation();
+        }
+
+        function startWordRotationIfNeeded() {
+            if (state.rotationActive || !state.words.length) {
+                return;
+            }
+            state.rotationActive = true;
+            wordRotationEl.classList.remove('hidden');
+            state.currentWord = pickRandomWord(null);
+            state.nextWord = pickRandomWord(state.currentWord);
+            displayWord(state.currentWord);
+            ensureWordDetail(state.currentWord);
+            if (state.nextWord) {
+                ensureWordDetail(state.nextWord);
+            }
+            scheduleNextRotation();
+        }
+
+        function stopWordRotation() {
+            if (state.wordTimerHandle) {
+                clearTimeout(state.wordTimerHandle);
+                state.wordTimerHandle = null;
+            }
+            resetTranslationDisplay();
+            Object.keys(state.wordDetailRetryTimers).forEach(word => {
+                clearTimeout(state.wordDetailRetryTimers[word]);
+            });
+            state.wordDetailRetryTimers = {};
+            state.wordDetailInFlight = {};
+            state.rotationActive = false;
+            wordRotationEl.classList.add('hidden');
         }
 
         function handleJobError(message) {
@@ -265,6 +530,25 @@
             btn.addEventListener('click', onToggleClick);
         });
 
+        function mergeWordDetails(wordDetails) {
+            Object.entries(wordDetails || {}).forEach(([word, info]) => {
+                if (!word) {
+                    return;
+                }
+                const status = info.status || 'done';
+                state.wordDetails[word] = {
+                    status,
+                    hiragana: info.hiragana || '',
+                    english: info.english || ''
+                };
+                if (status === 'error' && state.currentWord === word) {
+                    setTimeout(() => advanceWordRotation(), 0);
+                } else if (state.currentWord === word) {
+                    updateWordDetailDisplay();
+                }
+            });
+        }
+
         function pollStatus() {
             if (!jobId || state.jobStatus === 'error') {
                 return;
@@ -285,13 +569,19 @@
                         return;
                     }
 
-                    if (data.words_status === 'done' && Array.isArray(data.words) && !state.words.length) {
-                        state.words = data.words.slice();
-                        if (state.words.length === 0 && state.storyStatus !== 'done' && data.status === 'error') {
-                            handleJobError(data.error || 'No burned vocabulary available.');
-                            return;
+                    if (data.words_status === 'done' && Array.isArray(data.words)) {
+                        if (!state.words.length) {
+                            state.words = data.words.slice();
+                            if (!state.words.length && data.status === 'error') {
+                                handleJobError(data.error || 'No burned vocabulary available.');
+                                return;
+                            }
+                            startWordRotationIfNeeded();
                         }
-                        startWordRotationIfNeeded();
+                    }
+
+                    if (data.word_details) {
+                        mergeWordDetails(data.word_details);
                     }
 
                     if (data.story_status === 'done' && data.story && state.storyStatus !== 'done') {

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, session, redirect, request, jsonify
 from openai import OpenAI
+import csv
 import os
 import random
 from datetime import datetime
@@ -17,6 +18,7 @@ app.secret_key = os.environ.get('FLASK_SESSION_SECRET_KEY')
 
 openai_client = None
 burned_story_jobs = {}
+BURNED_WORDS_CSV_PATH = os.path.join('templates', 'burnedWords.csv')
 
 BURNED_STORY_WAITING_MESSAGE = (
     "Deep breaths - your burned wisdom is weaving a new tale. "
@@ -40,12 +42,16 @@ def ensure_openai_client():
         api_key = os.environ.get('OPENAI_API_KEY')
         if not api_key:
             raise RuntimeError('OPENAI_API_KEY environment variable is not set.')
-        openai_client = OpenAI(api_key=api_key)
+        try:
+            openai_client = OpenAI(api_key=api_key)
+        except Exception as exc:
+            print(f"Failed to initialize OpenAI client: {exc}")
+            raise
     return openai_client
 
 
-def get_completion_from_messages(messages, model="gpt-5-nano", max_tokens=2000, reasoning_effort="minimal", verbosity="low"):
-    """Wrapper around OpenAI Responses API with optional chat completion fallback."""
+def get_completion_from_messages(messages, model="gpt-5-nano", max_tokens=2000, reasoning_effort="minimal"):
+    """Wrapper around OpenAI Responses API"""
     client = ensure_openai_client()
 
     create_args = {
@@ -53,7 +59,6 @@ def get_completion_from_messages(messages, model="gpt-5-nano", max_tokens=2000, 
         "input": messages,
         "reasoning": {"effort": reasoning_effort},
         "max_output_tokens": max_tokens,
-        "verbosity": verbosity,
     }
     response = client.responses.create(**create_args)
 
@@ -148,16 +153,78 @@ def gather_burned_word_lists():
     return burned_words
 
 
-def generate_burned_story_text(burned_words):
+def load_cached_burned_words(path=BURNED_WORDS_CSV_PATH):
+    words = []
+    try:
+        with open(path, 'r', encoding='utf-8', newline='') as handle:
+            reader = csv.reader(handle)
+            for row in reader:
+                for entry in row:
+                    word = entry.strip()
+                    if word:
+                        words.append(word)
+    except FileNotFoundError:
+        return []
+    except Exception:
+        app.logger.exception('Failed to load cached burned words.')
+        return []
+    return words
+
+
+def write_cached_burned_words(words, path=BURNED_WORDS_CSV_PATH):
+    tmp_path = f"{path}.tmp"
+    directory = os.path.dirname(path)
+    try:
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with open(tmp_path, 'w', encoding='utf-8', newline='') as handle:
+            writer = csv.writer(handle)
+            writer.writerow(words)
+        os.replace(tmp_path, path)
+    except Exception:
+        app.logger.exception('Failed to update burned words cache.')
+        try:
+            os.remove(tmp_path)
+        except FileNotFoundError:
+            pass
+
+
+def refresh_burned_words_cache_async():
+    def _refresh():
+        try:
+            fresh_words = gather_burned_word_lists()
+            if fresh_words is not None:
+                write_cached_burned_words(fresh_words)
+        except Exception:
+            app.logger.exception('Background refresh of burned words failed.')
+
+    Thread(target=_refresh, daemon=True).start()
+
+
+def generate_burned_story_text(burned_words, scenario_text):
     """Generate a Japanese story primarily using the provided burned words."""
     if not burned_words:
         raise RuntimeError('No burned vocabulary found in WaniKani data.')
 
+    randomized_words = burned_words[:]
+    random.shuffle(randomized_words)
+
+    scenario_text = (scenario_text or '').strip()
+    scenario_instruction = (
+        "Base the story on this learner-provided scenario:\n"
+        f"{scenario_text}"
+        if scenario_text
+        else "The learner did not specify a scenario. Craft a supportive, everyday-life story suitable for study."
+    )
+
     user_prompt = f"""
-Write an interesting Japanese story.
-Can use any Proper Nouns including those that are in the Scenario text such as 'Katya'. 
-Write the story primarily using Nouns, Verbs and Adjectives that are in this list: {', '.join(burned_words)}.
+Write an interesting Japanese story tailored to a language learner.
+{scenario_instruction}
+Ensure the narrative clearly follows the scenario details and feels personal to the learner.
+Can use any Proper Nouns including those that are in the Scenario text.
+Write the story primarily using Nouns, Verbs and Adjectives that are in this list: {', '.join(randomized_words)}.
 Keep the story constrained to 3 paragraphs.
+Respond with only the story text.
 """
 
     messages = [
@@ -165,7 +232,7 @@ Keep the story constrained to 3 paragraphs.
         {'role': 'user', 'content': user_prompt.strip()}
     ]
 
-    story_text = get_reasoning_completion(messages)
+    story_text = get_completion_from_messages(messages=messages,model="gpt-5",reasoning_effort="medium", max_tokens=20000)
     return story_text.strip()
 
 
@@ -199,7 +266,6 @@ def generate_word_detail_via_model(word):
         model='gpt-5-nano',
         max_tokens=200,
         reasoning_effort='minimal',
-        verbosity='low'
     )
     if not response_text:
         raise RuntimeError('No output text returned for word detail.')
@@ -268,11 +334,23 @@ def _run_burned_story_job(job_id):
         return
 
     try:
-        words = gather_burned_word_lists()
-        job['words'] = words
-        job['words_status'] = 'done'
+        cached_words = load_cached_burned_words()
+        if cached_words:
+            job['words'] = cached_words
+            job['words_status'] = 'done'
+            refresh_burned_words_cache_async()
+            words = cached_words
+        else:
+            job['words'] = []
+            job['words_status'] = 'in_progress'
+            words = gather_burned_word_lists()
+            if words:
+                job['words'] = words
+                job['words_status'] = 'done'
+                write_cached_burned_words(words)
 
         if not words:
+            job['words_status'] = 'error'
             job['status'] = 'error'
             job['story_status'] = 'error'
             job['furigana_status'] = 'error'
@@ -283,7 +361,8 @@ def _run_burned_story_job(job_id):
             return
 
         job['story_status'] = 'in_progress'
-        story = generate_burned_story_text(words)
+        scenario_text = job.get('scenario', '')
+        story = generate_burned_story_text(words, scenario_text)
         job['story'] = story
         job['story_status'] = 'done'
         job['status'] = 'done'
@@ -305,7 +384,7 @@ def _run_burned_story_job(job_id):
         job['english_error'] = str(exc)
 
 
-def start_burned_story_job():
+def start_burned_story_job(scenario_text=''):
     job_id = str(uuid.uuid4())
     burned_story_jobs[job_id] = {
         'status': 'in_progress',
@@ -321,6 +400,7 @@ def start_burned_story_job():
         'english': '',
         'english_error': None,
         'error': None,
+        'scenario': scenario_text,
     }
     Thread(target=_run_burned_story_job, args=(job_id,), daemon=True).start()
     return job_id
@@ -516,9 +596,15 @@ def japaneseStory():
     return render_template('japaneseStory.html', result = result_data)
 
 
+@app.route('/burnedStoryScenario', methods=['GET'])
+def burned_story_scenario():
+    return render_template('burnedStoryScenario.html')
+
+
 @app.route('/burnedStory', methods=['POST'])
 def burned_story():
-    job_id = start_burned_story_job()
+    scenario_text = request.form.get('scenarioText', '').strip()
+    job_id = start_burned_story_job(scenario_text=scenario_text)
     return render_template(
         'burnedStory.html',
         job_id=job_id,
@@ -670,7 +756,7 @@ def withFuriganaHTMLParagraph(japaneseStory):
          },
     '''
 
-    furiganaVersion = get_completion_from_messages(messages, model="gpt-5", reasoning_effort="medium", max_tokens=10000)
+    furiganaVersion = get_completion_from_messages(messages, model="gpt-5", reasoning_effort="medium", max_tokens=20000)
     # print(furiganaVersion)
     return furiganaVersion
 
