@@ -506,7 +506,7 @@ def chooseSelectedWords(subject_types="vocabulary", max_words=5):
     return selected_words
 
 
-def create_story(selected_words, max_sentences, temperature=0.0):
+def create_story(selected_words, max_sentences):
     # Prompt to create Japanese Story
     words = []
     for selected_word in selected_words:
@@ -527,8 +527,7 @@ def create_story(selected_words, max_sentences, temperature=0.0):
          },
     ]
 
-    # Print story in German
-    response = get_completion_from_messages(messages, temperature=temperature, model="gpt-4", max_tokens=100)
+    response = get_completion_from_messages(messages, model="gpt-5", max_tokens=100)
     response = response.strip('"')
     # print("Japanese Story:")
     # print(response)
@@ -574,8 +573,7 @@ def japaneseStory():
     # print(request.form.get('category'))
     selected_words = chooseSelectedWords(request.form.get('category'), max_words)
     # print(selected_words)
-    temperature = (max_words - len(selected_words))/max_words
-    messages, response = create_story(selected_words, max_sentences, temperature=temperature)
+    messages, response = create_story(selected_words, max_sentences)
 
     session['selected_words_position'] = 0
     session['selected_words'] = selected_words
@@ -790,7 +788,7 @@ def correctSpellingGrammar(japaneseStory):
     ]
     # print("correctSpellingGrammar:")
     # print(messages)
-    correctSpellingGrammarVersion = get_completion_from_messages(messages, model="gpt-4", max_tokens=500)
+    correctSpellingGrammarVersion = get_completion_from_messages(messages, model="gpt-5", max_tokens=500)
     # print(correctSpellingGrammarVersion)
 
     return correctSpellingGrammarVersion

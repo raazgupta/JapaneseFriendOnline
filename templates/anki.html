@@ -1,24 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vocabulary Review</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        /* Add your CSS styling for the loading text here */
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h1>Vocabulary Review:</h1>
-    <p style="font-size: 20px;">{{ result.number }}: {{ result.wort }}</p>
-    <form method="POST" action="./ankiTranslate">
-        <button type="submit" class="custom-button">Translation</button>
-    </form>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>🎴 Kanji Drill Time</h1>
+
+            <div class="highlight-panel">
+                <p style="font-size: 1.3rem;">{{ result.number }}. {{ result.wort }}</p>
+            </div>
+
+            <form method="POST" action="./ankiTranslate">
+                <button type="submit">Reveal Translation 🧠</button>
+            </form>
+
+            <a class="button-link secondary back-home" href="./">Back to Home ⛩️</a>
+        </div>
+    </div>
 </body>
 </html>

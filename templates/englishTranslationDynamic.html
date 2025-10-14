@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hiragana and English Translation</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
     const englishTranslationUrl = 'ankiEnglishTranslation';
     const furiganaUrl = 'ankiFurigana';
     $(document).ready(function() {
-        // Define a function to make the API request for English Translation
         function fetchEnglishTranslation() {
             $.ajax({
-                url: englishTranslationUrl,  // Endpoint resolved via Flask for local/server
-                method: 'GET',              // Use 'GET' or 'POST' based on your API
+                url: englishTranslationUrl,
+                method: 'GET',
                 success: function(data) {
-                    // Update the content of the paragraph with the response data
                     $('#dynamic-english').text(data);
                 },
                 error: function(error) {
@@ -22,13 +22,11 @@
                 }
             });
         }
-        // Define a function to make the API request for showing　the furigana
         function fetchFurigana() {
             $.ajax({
                 url: furiganaUrl,
-                method: 'GET',              // Use 'GET' or 'POST' based on your API
+                method: 'GET',
                 success: function(data) {
-                    // Update the content of the paragraph with the response data
                     $('#dynamic-furigana').html(data);
                 },
                 error: function(error) {
@@ -36,32 +34,37 @@
                 }
             });
         }
-
-        // Call the function to fetch data when the page loads
         fetchEnglishTranslation();
         fetchFurigana();
     });
     </script>
-    <style>
-        /* Add your CSS styling for the loading text here */
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-        }
-    </style>
 </head>
 <body>
-    <h3>Japanese Story:</h3>
-    <p style="font-size: 20px;">{{ result.japaneseStory }}</p>
-    <h3>Japanese Story with Furigana:</h3>
-    <p id="dynamic-furigana" style="font-size: 20px;">あの。。。えと。。。</p>
-    <h3>English Translation:</h3>
-    <p id="dynamic-english" style="font-size: 20px;">Thinking ...</p>
-    <a href="./">
-        <button class="custom-button">Go Home</button>
-    </a>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>🔁🌸 Live Translation Station</h1>
+
+            <section>
+                <h3>🈶 Original Story</h3>
+                <p>{{ result.japaneseStory }}</p>
+            </section>
+
+            <div class="section-divider"></div>
+
+            <section>
+                <h3>🈁 Furigana</h3>
+                <div id="dynamic-furigana" class="highlight-panel">あの。。。えと。。。 🌙</div>
+            </section>
+
+            <div class="section-divider"></div>
+
+            <section>
+                <h3>🇬🇧 English Translation</h3>
+                <p id="dynamic-english">Thinking ... 🍵</p>
+            </section>
+
+            <a class="button-link secondary back-home" href="./">Return Home ⛩️</a>
+        </div>
+    </div>
 </body>
 </html>

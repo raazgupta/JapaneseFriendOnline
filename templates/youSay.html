@@ -1,39 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>You Say</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-            margin-top: 10px; /* Adjust the margin as needed */
-            margin-right: 10px; /* Adjust the margin as needed */
-        }
-        #youSayText {
-            width: 100%;
-            height: 3em; /* 3 lines */
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h1>You Say</h1>
-    <h3>Spelling and Grammar suggestion:</h3>
-    {{ result.iSayTextReviewed | safe }}
-    <h3>Response:</h3>
-    {{ result.youSayTextFurigana | safe }}
-    <h3>English Translation:</h3>
-    <p style="font-size: 20px;">{{ result.youSayTextEnglish }}</p>
-    <form id="youSayForm" method="POST" action="./youSay">
-        <button class="custom-button">Continue</button>
-    </form>
-    <!-- Add a line break to move the second button to a new line -->
-    <br>
-    <a href="./">
-        <button class="custom-button">Go Home</button>
-    </a>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>🎤🌸 You Say</h1>
+
+            <section>
+                <h3>📝 Polished Sentence</h3>
+                <div class="highlight-panel">{{ result.iSayTextReviewed | safe }}</div>
+            </section>
+
+            <div class="section-divider"></div>
+
+            <section>
+                <h3>🈁 Response with Furigana</h3>
+                <div class="highlight-panel">{{ result.youSayTextFurigana | safe }}</div>
+            </section>
+
+            <div class="section-divider"></div>
+
+            <section>
+                <h3>🇬🇧 English Translation</h3>
+                <p>{{ result.youSayTextEnglish }}</p>
+            </section>
+
+            <form id="youSayForm" method="POST" action="./youSay">
+                <button type="submit">Continue the Chat 🔄</button>
+            </form>
+
+            <a class="button-link secondary back-home" href="./">Back to Home ⛩️</a>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,61 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Japanese Friend Online</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        /* Add your CSS styling for the loading text here */
-        #loading {
-            display: none;
-            text-align: left;
-            padding: 0px;
-        }
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-        }
-        label, select {
-            font-size: 16px; /* Increase font size for label and dropdown */
-            margin-bottom: 10px; /* Add margin to separate them from the button */
-            display: block; /* Make them block elements to stack vertically */
-        }
-        #converse-form button {
-            margin-top: 30px; /* Adjust the margin to your preference */
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h1>Japanese Friend Online</h1>
-    <form id="story-form" method="POST" action="japaneseStory">
-        <label for="category">Generate Japanese story using in-review Wanikani:</label>
-        <select id="category" name="category">
-            <option value="vocabulary" selected>Vocabulary</option>
-            <option value="kanji">Kanji</option>
-        </select>
-        <br> <!-- Add a line break to move the button to the next line -->
-        <button type="submit" class="custom-button">Show Japanese Story</button>
-    </form>
-    <form method="GET" action="burnedStoryScenario">
-        <button type="submit" class="custom-button">Burned Words Japanese Story</button>
-    </form>
-    <form id="converse-form" method="POST" action="japaneseConversation">
-        <button type="submit" class="custom-button">Converse in Japanese</button>
-    </form>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>🇯🇵 Japanese Friend Online</h1>
 
-    <div id="loading">
-        <p style="color: white;">AI is cooking your tasty story. Please be patient ...</p>
+            <div class="section-divider"></div>
+
+            <form id="story-form" method="POST" action="japaneseStory">
+                <label for="category">🎏 Choose your WaniKani focus:</label>
+                <select id="category" name="category">
+                    <option value="vocabulary" selected>Vocabulary</option>
+                    <option value="kanji">Kanji</option>
+                </select>
+                <button type="submit">Craft a Story 🍡</button>
+            </form>
+
+            <form method="GET" action="burnedStoryScenario">
+                <button type="submit">Burned Words Story 🔥📜</button>
+            </form>
+
+            <form id="converse-form" method="POST" action="japaneseConversation">
+                <button type="submit">Converse in Japanese 🗣️🏯</button>
+            </form>
+
+            <div id="loading">🍵 Brewing your story magic…</div>
+        </div>
     </div>
 
     <script>
-        // JavaScript code to show the loading text
         document.addEventListener("DOMContentLoaded", function () {
-            var storyForm = document.getElementById("story-form");
-            var loading = document.getElementById("loading");
-            storyForm.addEventListener("submit", function (event) {
-                // Display loading text while waiting for the response
+            const storyForm = document.getElementById("story-form");
+            const loading = document.getElementById("loading");
+            storyForm.addEventListener("submit", function () {
                 loading.style.display = "block";
             });
         });

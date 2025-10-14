@@ -1,28 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hiragana and English Translation</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        /* Add your CSS styling for the loading text here */
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h3>Japanese Story:</h3>
-    <p style="font-size: 20px;">{{ result.japaneseStory }}</p>
-    <h3>Hiragana:</h3>
-    {{ result.hiraganaStory | safe }}
-    <h3>English Translation:</h3>
-    <p style="font-size: 20px;">{{ result.englishStory }}</p>
-    <a href="./">
-        <button class="custom-button">Go Home</button>
-    </a>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>📚🌸 Story Breakdown</h1>
+
+            <section>
+                <h3>🈶 Original Story</h3>
+                <p>{{ result.japaneseStory }}</p>
+            </section>
+
+            <div class="section-divider"></div>
+
+            <section>
+                <h3>🈁 Furigana</h3>
+                <div class="highlight-panel">{{ result.hiraganaStory | safe }}</div>
+            </section>
+
+            <div class="section-divider"></div>
+
+            <section>
+                <h3>🇬🇧 English Translation</h3>
+                <p>{{ result.englishStory }}</p>
+            </section>
+
+            <a class="button-link secondary back-home" href="./">Return Home ⛩️</a>
+        </div>
+    </div>
 </body>
 </html>

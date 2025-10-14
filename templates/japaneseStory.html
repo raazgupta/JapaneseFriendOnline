@@ -1,25 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Japanese Story</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        /* Add your CSS styling for the loading text here */
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h1>Japanese Story:</h1>
-    <p>Last Run DateTime: {{ result.lastRunDateTime }}</p>
-    <p style="font-size: 30px;">Story: {{ result.japaneseStoryString }}</p>
-    <form method="POST" action="./anki">
-        <button type="submit" class="custom-button">Practice Vocabulary</button>
-    </form>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>📖🌸 Fresh Japanese Story</h1>
+            <p>Last run: {{ result.lastRunDateTime }}</p>
+
+            <div class="highlight-panel">
+                <p style="font-size: 1.2rem;">{{ result.japaneseStoryString }}</p>
+            </div>
+
+            <form method="POST" action="./anki">
+                <button type="submit">Practice Vocabulary with Anki 🎴</button>
+            </form>
+
+            <a class="button-link secondary back-home" href="./">Return Home ⛩️</a>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,81 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Burned Words Scenario</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        body {
-            margin: 20px;
-        }
-        h1 {
-            margin-bottom: 10px;
-        }
-        p.description {
-            font-size: 18px;
-            max-width: 760px;
-            line-height: 1.5;
-        }
-        form {
-            margin-top: 20px;
-        }
-        label {
-            display: block;
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        textarea {
-            width: 100%;
-            max-width: 760px;
-            height: 180px;
-            padding: 10px;
-            font-size: 18px;
-            line-height: 1.4;
-            border-radius: 6px;
-            border: 1px solid #666;
-            background-color: rgba(0, 0, 0, 0.2);
-            color: #fff;
-        }
-        .button-row {
-            margin-top: 20px;
-            display: flex;
-            gap: 12px;
-        }
-        .primary-button, .secondary-button {
-            font-size: 18px;
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: 1px solid #888;
-            cursor: pointer;
-        }
-        .primary-button {
-            background-color: #556cd6;
-            color: #fff;
-        }
-        .secondary-button {
-            background-color: transparent;
-            color: #fff;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .secondary-button:hover,
-        .primary-button:hover {
-            opacity: 0.85;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h1>Burned Words Japanese Story</h1>
-    <p class="description">Tell me about the setting or situation you want the story to follow. Mention characters, goals, emotions, or anything else that will make the story feel personal to you.</p>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>🔥🎌 Burned Words Story Setup</h1>
 
-    <form method="POST" action="/burnedStory">
-        <label for="scenarioText">Scenario for your story</label>
-        <textarea id="scenarioText" name="scenarioText" placeholder="For example: Katya and Sophia are preparing for a trip to Korea. We visit castles, try tasty foods, and go for a Kpop concert." required></textarea>
-        <div class="button-row">
-            <button type="submit" class="primary-button">Generate Story</button>
-            <a href="/" class="secondary-button" role="button">Back</a>
+            <p>Describe the scene, characters, or emotions you want to explore. Think cherry blossoms, ramen nights, heroic samurai — anything goes!</p>
+
+            <form method="POST" action="/burnedStory">
+                <label for="scenarioText">🌸 Scenario inspiration:</label>
+                <textarea id="scenarioText" name="scenarioText" placeholder="例: Two friends reunite under Kyoto's lanterns and rediscover their burned vocab 🌕" required></textarea>
+                <button type="submit">Generate Story ✨</button>
+            </form>
+
+            <a class="button-link secondary back-home" href="/">Back to Home ⛩️</a>
         </div>
-    </form>
+    </div>
 </body>
 </html>

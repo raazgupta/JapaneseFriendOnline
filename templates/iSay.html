@@ -1,46 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>I Say</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-        }
-        #iSayText {
-            width: 100%;
-            height: 3em; /* 3 lines */
-        }
-        /* Add your CSS styling for the loading text here */
-        #loading {
-            display: none;
-            text-align: left;
-            padding: 0px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h1>I Say</h1>
-    <form id="iSayForm" method="POST" action="./iSayDynamic">
-        <textarea id="iSayText" name="iSayText" rows="3" cols="50" placeholder="Start or continue the conversation in Japanese. Limit it to 1 sentence each time."></textarea>
-        <br> <!-- Add a line break to move the button to a new line -->
-        <button type="submit" class="custom-button">Submit</button>
-    </form>
-    <div id="loading">
-        <p style="color: white;">あの。。。えと。。。</p>
-    </div>
-    <script>
-        // JavaScript code to show the loading text
-        document.addEventListener("DOMContentLoaded", function () {
-            var storyForm = document.getElementById("iSayForm");
-            var loading = document.getElementById("loading");
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>📝🌸 I Say</h1>
 
-            storyForm.addEventListener("submit", function (event) {
-                // Display loading text while waiting for the response
+            <form id="iSayForm" method="POST" action="./iSayDynamic">
+                <label for="iSayText">🎤 Your turn:</label>
+                <textarea id="iSayText" name="iSayText" rows="3" cols="50" placeholder="Start or continue the conversation in Japanese. Limit it to one sentence each time. 🗻"></textarea>
+                <button type="submit">Submit Line ✉️</button>
+            </form>
+
+            <div id="loading">あの。。。えと。。。 🍵</div>
+
+            <a class="button-link secondary back-home" href="./">Back to Home ⛩️</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const storyForm = document.getElementById("iSayForm");
+            const loading = document.getElementById("loading");
+            storyForm.addEventListener("submit", function () {
                 loading.style.display = "block";
             });
         });

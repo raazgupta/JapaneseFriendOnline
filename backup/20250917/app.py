@@ -4,7 +4,7 @@ with open(activate_this) as file_:
     exec(file_.read(), dict(__file__=activate_this))
 
 from flask import Flask, render_template, session, redirect, url_for, request
-import openai
+from openai import OpenAI
 import os
 import random
 from datetime import datetime
@@ -15,21 +15,43 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SESSION_SECRET_KEY')
 
 
-def get_completion_from_messages(messages, model="gpt-4", temperature=0.0, max_tokens=500):
-    openai.api_key = os.environ.get('OPENAI_API_KEY')
-    # print("Get completion message: ", messages)
+openai_client = None
+
+
+def ensure_openai_client():
+    """Lazily instantiate the OpenAI client so failures surface clearly."""
+    global openai_client
+    if openai_client is None:
+        api_key = os.environ.get('OPENAI_API_KEY')
+        if not api_key:
+            raise RuntimeError('OPENAI_API_KEY environment variable is not set.')
+        openai_client = OpenAI(api_key=api_key)
+    return openai_client
+
+
+def get_completion_from_messages(messages, model="gpt-4.1-mini", temperature=0.0, max_tokens=500, reasoning_effort="minimal"):
+    """Wrapper around the Responses API so older routes work unchanged."""
+    client = ensure_openai_client()
+
+    create_args = {
+        "model": model,
+        "input": messages,
+        "reasoning": {"effort": reasoning_effort},
+    }
+    if max_tokens is not None:
+        create_args["max_output_tokens"] = max_tokens
+    if temperature is not None:
+        create_args["temperature"] = float(temperature)
+
     start_time = time.time()
-    response = openai.ChatCompletion.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    end_time = time.time()
-    elapsed_time = end_time - start_time
+    response = client.responses.create(**create_args)
+    elapsed_time = time.time() - start_time
     print(messages)
-    print(f"ChatGPT response time: {elapsed_time:.2f} seconds.")
-    return response.choices[0].message["content"]
+    print(f"Responses API call time: {elapsed_time:.2f} seconds.")
+
+    if hasattr(response, 'output_text') and response.output_text:
+        return response.output_text
+    raise RuntimeError('No text returned from Responses API call.')
 
 def get_response_from_wanikani(url_end = ""):
     api_url = "https://api.wanikani.com/v2/" + url_end
@@ -175,7 +197,7 @@ def create_story(selected_words, max_sentences, temperature=0.0):
     ]
 
     # Print story in German
-    response = get_completion_from_messages(messages, temperature=temperature, model="gpt-4", max_tokens=100)
+    response = get_completion_from_messages(messages, temperature=temperature, model="gpt-4.1-mini", max_tokens=100)
     response = response.strip('"')
     # print("Japanese Story:")
     # print(response)
@@ -320,7 +342,7 @@ def withFuriganaHTMLParagraph(japaneseStory):
          },
     '''
 
-    furiganaVersion = get_completion_from_messages(messages, model="gpt-4")
+    furiganaVersion = get_completion_from_messages(messages, model="gpt-4.1")
     # print(furiganaVersion)
     return furiganaVersion
 
@@ -354,7 +376,7 @@ def correctSpellingGrammar(japaneseStory):
     ]
     # print("correctSpellingGrammar:")
     # print(messages)
-    correctSpellingGrammarVersion = get_completion_from_messages(messages, model="gpt-4", max_tokens=500)
+    correctSpellingGrammarVersion = get_completion_from_messages(messages, model="gpt-4.1", max_tokens=500)
     # print(correctSpellingGrammarVersion)
 
     return correctSpellingGrammarVersion

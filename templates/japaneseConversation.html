@@ -1,28 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scenario Page</title>
-    <link rel="stylesheet" href="./static/css/dark-mode.css" id="dark-mode-stylesheet">
-    <style>
-        /* Style the button */
-        .custom-button {
-            font-size: 20px; /* Set the font size to 20 pixels */
-            font-family: Arial, sans-serif; /* Set the font family */
-            padding: 5px 10px; /* Add some padding for a larger button */
-            border-radius: 5px;
-        }
-        #scenarioText {
-            width: 100%;
-            height: 3em; /* 3 lines */
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/japanese-theme.css') }}">
 </head>
 <body>
-    <h1>Scenario</h1>
-    <form method="POST" action="./japaneseScenario">
-        <textarea id="scenarioText" name="scenarioText" rows="3" cols="50" placeholder="Enter your scenario here..."></textarea>
-        <br> <!-- Add a line break to move the button to a new line -->
-        <button type="submit" class="custom-button">Submit</button>
-    </form>
+    <div class="page-wrapper">
+        <div class="content-card">
+            <h1>🗣️🎎 Dream Up a Scenario</h1>
+
+            <form method="POST" action="./japaneseScenario">
+                <label for="scenarioText">🗻 Paint the moment (Japanese or English welcome):</label>
+                <textarea id="scenarioText" name="scenarioText" rows="3" cols="50" placeholder="例: Ordering sushi in Osaka during a festival 🍣🎆"></textarea>
+                <button type="submit">Start the Dialogue 🎤</button>
+            </form>
+
+            <a class="button-link secondary back-home" href="./">Back to Home ⛩️</a>
+        </div>
+    </div>
 </body>
 </html>
