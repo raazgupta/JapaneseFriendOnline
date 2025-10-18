@@ -386,7 +386,7 @@
                 return;
             }
             state.wordDetailInFlight[word] = true;
-            fetch(`/burnedStory/word/${jobId}`, {
+            fetch(`./burnedStory/word/${jobId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ word })
@@ -558,7 +558,7 @@
                 return;
             }
 
-            fetch(`/burnedStory/status/${jobId}`)
+            fetch(`./burnedStory/status/${jobId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Unable to check story status.');
