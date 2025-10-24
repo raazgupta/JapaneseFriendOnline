@@ -42,24 +42,26 @@
 <body>
     <div class="page-wrapper">
         <div class="content-card">
-            <h1>🔁🌸 Live Translation Station</h1>
+            <h1 class="story-title-small">Furigana and Translation</h1>
 
             <section>
-                <h3>🈶 Original Story</h3>
-                <p>{{ result.japaneseStory }}</p>
+                <h3 class="section-title-compact">🈶 Original Story</h3>
+                <div class="dotted-panel story-text-emphasis">
+                    {{ result.japaneseStory }}
+                </div>
             </section>
 
             <div class="section-divider"></div>
 
             <section>
-                <h3>🈁 Furigana</h3>
-                <div id="dynamic-furigana" class="highlight-panel">あの。。。えと。。。 🌙</div>
+                <h3 class="section-title-compact">🈁 Furigana</h3>
+                <div id="dynamic-furigana" class="highlight-panel story-text-emphasis">あの。。。えと。。。 🌙</div>
             </section>
 
             <div class="section-divider"></div>
 
             <section>
-                <h3>🇬🇧 English Translation</h3>
+                <h3 class="section-title-compact">🇬🇧 English Translation</h3>
                 <p id="dynamic-english">Thinking ... 🍵</p>
             </section>
 

@@ -20,11 +20,7 @@ openai_client = None
 burned_story_jobs = {}
 BURNED_WORDS_CSV_PATH = os.path.join('templates', 'burnedWords.csv')
 
-BURNED_STORY_WAITING_MESSAGE = (
-    "Deep breaths - your burned wisdom is weaving a new tale. "
-    "Celebrate the kanji you have mastered while we compose the story. "
-    "Please enjoy this mindful pause. Generation may take three minutes."
-)
+BURNED_STORY_WAITING_MESSAGE = "Deep breaths — I am brewing your story."
 
 FURIGANA_WAITING_MESSAGE = (
     "Calm winds are guiding the readings into place. Your furigana will appear shortly."

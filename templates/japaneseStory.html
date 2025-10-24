@@ -9,11 +9,11 @@
 <body>
     <div class="page-wrapper">
         <div class="content-card">
-            <h1>📖🌸 Fresh Japanese Story</h1>
+            <h1 class="story-title-small">📖 Fresh Japanese Story</h1>
             <p>Last run: {{ result.lastRunDateTime }}</p>
 
             <div class="highlight-panel">
-                <p style="font-size: 1.2rem;">{{ result.japaneseStoryString }}</p>
+                <p class="story-text-emphasis">{{ result.japaneseStoryString }}</p>
             </div>
 
             <form method="POST" action="./anki">

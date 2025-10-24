@@ -17,19 +17,29 @@
         .word-rotation {
             text-align: center;
             margin: 28px 0;
-            min-height: 80px;
+            min-height: 200px;
+            border: 2px dotted var(--japan-red);
+            border-radius: 18px;
+            padding: 24px 20px;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
         .word-text {
             font-size: 2.2rem;
             display: inline-block;
             opacity: 0;
             color: var(--japan-red-dark);
+            min-height: 2.5rem;
         }
         .word-subtext {
             display: block;
             font-size: 1.2rem;
-            margin-top: 8px;
             opacity: 0.85;
+            min-height: 1.6rem;
         }
         .word-english {
             font-size: 1.1rem;
@@ -99,9 +109,20 @@
             line-height: 1.7;
             font-size: 1.35rem;
         }
+        .story-box--framed {
+            border: 2px dotted var(--japan-red);
+        }
+        .story-box--kanji {
+            font-size: 1.875rem;
+        }
         @media (max-width: 600px) {
             .word-text {
                 font-size: 1.9rem;
+            }
+            .word-rotation {
+                min-height: 170px;
+                padding: 20px 16px;
+                gap: 8px;
             }
             .story-box {
                 font-size: 1.15rem;
@@ -113,9 +134,9 @@
 <body>
     <div class="page-wrapper">
         <div class="content-card">
-            <h1>🔥📜 Burned Words Story Showcase</h1>
+            <h1>🍵 Burned Words Story</h1>
 
-            <div id="waiting-message" class="message highlight-panel">{{ initial_story }}</div>
+            <div id="waiting-message" class="message">{{ initial_story }}</div>
 
             <div id="word-rotation" class="word-rotation hidden">
                 <span id="word-text" class="word-text"></span>
@@ -208,6 +229,12 @@
         function updateStoryBox() {
             if (state.storyStatus !== 'done') {
                 return;
+            }
+
+            if (storyBox) {
+                const framedViews = ['kanji', 'furigana', 'english'];
+                storyBox.classList.toggle('story-box--framed', framedViews.includes(state.currentView));
+                storyBox.classList.toggle('story-box--kanji', state.currentView === 'kanji');
             }
 
             if (state.currentView === 'kanji') {
@@ -511,6 +538,9 @@
         function revealStoryIfReady() {
             if (state.storyStatus === 'done' && state.storyText) {
                 stopWordRotation();
+                if (wordRotationEl && wordRotationEl.parentElement) {
+                    wordRotationEl.parentElement.removeChild(wordRotationEl);
+                }
                 if (waitingMessageEl) {
                     waitingMessageEl.textContent = '';
                 }
