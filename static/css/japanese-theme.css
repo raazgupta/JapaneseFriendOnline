@@ -24,6 +24,13 @@ body {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
+  padding-top: calc(40px + env(safe-area-inset-top));
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+
+body.page-english-translation,
+body.page-burned-story {
+  padding-top: calc(4px + env(safe-area-inset-top));
 }
 
 body::after {
@@ -65,6 +72,10 @@ h1 {
   font-size: 1.25rem;
 }
 
+.story-title-small.anki-title {
+  font-size: 1.08rem;
+}
+
 h2 {
   font-size: 1.9rem;
   margin-bottom: 10px;
@@ -98,6 +109,16 @@ strong {
 .story-text-emphasis {
   font-size: 1.35rem;
   line-height: 1.8;
+}
+
+.highlight-panel.anki-panel {
+  font-size: 1.5rem;
+  line-height: 1.9;
+}
+
+.highlight-panel.anki-panel p {
+  font-size: inherit;
+  line-height: inherit;
 }
 
 form {
@@ -274,6 +295,11 @@ footer {
 @media (max-width: 640px) {
   body {
     padding: 24px 12px;
+  }
+
+  body.page-english-translation,
+  body.page-burned-story {
+    padding-top: calc(5px + env(safe-area-inset-top));
   }
 
   .content-card {

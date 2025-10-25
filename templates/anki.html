@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vocabulary Review</title>
-    <link rel="stylesheet" href="./static/css/japanese-theme.css">
+    {% set page_title = "Vocabulary Review" %}
+    {% include '_head.html' %}
 </head>
 <body>
     <div class="page-wrapper">
         <div class="content-card">
-            <h1 class="story-title-small">🎴 Kanji Drill Time</h1>
+            <h1 class="story-title-small anki-title">🎴 Kanji Drill Time</h1>
 
-            <div class="highlight-panel story-text-emphasis">
+            <div class="highlight-panel story-text-emphasis anki-panel">
                 <p>{{ result.number }}. {{ result.wort }}</p>
             </div>
 

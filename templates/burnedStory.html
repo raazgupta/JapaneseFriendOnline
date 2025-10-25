@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Burned Words Japanese Story</title>
-    <link rel="stylesheet" href="./static/css/japanese-theme.css">
+    {% set page_title = "Burned Words Japanese Story" %}
+    {% include '_head.html' %}
     <style>
         .message {
             margin: 18px 0;
@@ -131,7 +129,7 @@
         }
     </style>
 </head>
-<body>
+<body class="page-burned-story">
     <div class="page-wrapper">
         <div class="content-card">
             <h1>🍵 Burned Words Story</h1>
@@ -147,7 +145,7 @@
             <div id="story-container" class="story-container hidden">
                 <div class="toggle-buttons">
                     <button class="toggle-button active" data-view="kanji">Kanji 🀄</button>
-                    <button class="toggle-button" data-view="furigana">Furigana 🌸</button>
+                    <button class="toggle-button" data-view="furigana">Furigana 🇯🇵</button>
                     <button class="toggle-button" data-view="english">English 🇬🇧</button>
                 </div>
                 <div id="story-box" class="story-box"></div>

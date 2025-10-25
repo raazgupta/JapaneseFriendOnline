@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hiragana and English Translation</title>
-    <link rel="stylesheet" href="./static/css/japanese-theme.css">
+    {% set page_title = "Hiragana and English Translation" %}
+    {% include '_head.html' %}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
     const englishTranslationUrl = 'ankiEnglishTranslation';
@@ -39,7 +37,7 @@
     });
     </script>
 </head>
-<body>
+<body class="page-english-translation">
     <div class="page-wrapper">
         <div class="content-card">
             <h1 class="story-title-small">Furigana and Translation</h1>
@@ -54,7 +52,7 @@
             <div class="section-divider"></div>
 
             <section>
-                <h3 class="section-title-compact">🈁 Furigana</h3>
+                <h3 class="section-title-compact">🇯🇵 Furigana</h3>
                 <div id="dynamic-furigana" class="highlight-panel story-text-emphasis">あの。。。えと。。。 🌙</div>
             </section>
 
