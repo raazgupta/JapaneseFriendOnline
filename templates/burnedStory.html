@@ -4,6 +4,10 @@
     {% set page_title = "Burned Words Japanese Story" %}
     {% include '_head.html' %}
     <style>
+        :root {
+            --word-rotation-duration: 14s;
+            --translation-rotation-duration: 7s;
+        }
         .message {
             margin: 18px 0;
             font-size: 1.05rem;
@@ -43,16 +47,16 @@
             font-size: 1.1rem;
         }
         .fade-cycle {
-            animation: fadeCycle 30s ease-in-out forwards;
+            animation: fadeCycle var(--word-rotation-duration) ease-in-out forwards;
         }
         .fade-cycle-translation {
-            animation: fadeCycle 15s ease-in-out forwards;
+            animation: fadeCycle var(--translation-rotation-duration) ease-in-out forwards;
         }
         @keyframes fadeCycle {
             0% { opacity: 0; transform: translateY(10px); }
             10% { opacity: 1; transform: translateY(0); }
             90% { opacity: 1; }
-            100% { opacity: 0; transform: translateY(-6px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
         .story-container {
             margin-top: 30px;
@@ -145,7 +149,7 @@
             <div id="story-container" class="story-container hidden">
                 <div class="toggle-buttons">
                     <button class="toggle-button active" data-view="kanji">Kanji 🀄</button>
-                    <button class="toggle-button" data-view="furigana">Furigana 🇯🇵</button>
+                    <button class="toggle-button" data-view="furigana">Furigana 🌸</button>
                     <button class="toggle-button" data-view="english">English 🇬🇧</button>
                 </div>
                 <div id="story-box" class="story-box"></div>
@@ -168,16 +172,25 @@
         const storyBox = document.getElementById('story-box');
         const toggleButtons = Array.from(document.querySelectorAll('.toggle-button'));
 
+        const WORD_DISPLAY_DURATION_MS = 7000;
+        const TRANSLATION_DISPLAY_DURATION_MS = 7000;
+        const WORD_DETAIL_RETRY_DELAY_MS = 800;
+        const FAST_POLL_INTERVAL_MS = 500;
+        const NORMAL_POLL_INTERVAL_MS = 4000;
+        const TRANSLATION_WAITING_TEXT = 'Brewing the hiragana ...';
+
         const state = {
             words: [],
             wordDetails: {},
             wordDetailInFlight: {},
             wordDetailRetryTimers: {},
             rotationActive: false,
-            wordTimerHandle: null,
+            rotationTimerHandle: null,
             translationTimerHandle: null,
             translationRevealed: false,
             translationRevealPending: false,
+            translationRevealRequested: false,
+            awaitingDetailForReveal: false,
             currentWord: null,
             nextWord: null,
             storyStatus: 'pending',
@@ -190,7 +203,8 @@
             englishError: null,
             jobStatus: 'in_progress',
             jobError: null,
-            currentView: 'kanji'
+            currentView: 'kanji',
+            wordsStatus: 'pending'
         };
 
         function shouldContinuePolling() {
@@ -263,11 +277,18 @@
             }
         }
 
-        function scheduleWordDetailRetry(word, delay = 1500) {
+        function scheduleWordDetailRetry(word, delay = WORD_DETAIL_RETRY_DELAY_MS) {
             clearWordDetailRetry(word);
             state.wordDetailRetryTimers[word] = setTimeout(() => {
                 requestWordDetail(word);
             }, delay);
+        }
+
+        function clearRotationTimer() {
+            if (state.rotationTimerHandle) {
+                clearTimeout(state.rotationTimerHandle);
+                state.rotationTimerHandle = null;
+            }
         }
 
         function clearTranslationTimer() {
@@ -280,7 +301,10 @@
         function resetTranslationDisplay() {
             state.translationRevealed = false;
             state.translationRevealPending = false;
+            state.translationRevealRequested = false;
+            state.awaitingDetailForReveal = false;
             clearTranslationTimer();
+            clearRotationTimer();
             wordHiraganaEl.textContent = '';
             wordEnglishEl.textContent = '';
             wordHiraganaEl.classList.remove('fade-cycle-translation');
@@ -301,17 +325,60 @@
         }
 
         function scheduleTranslationReveal() {
+            if (!state.rotationActive) {
+                return;
+            }
+            state.translationRevealRequested = false;
+            state.awaitingDetailForReveal = false;
             clearTranslationTimer();
             state.translationTimerHandle = setTimeout(() => {
-                revealWordDetails();
-            }, 15000);
+                state.translationTimerHandle = null;
+                state.translationRevealRequested = true;
+                attemptTranslationReveal();
+            }, WORD_DISPLAY_DURATION_MS);
         }
 
-        function revealWordDetails() {
-            state.translationTimerHandle = null;
+        function attemptTranslationReveal() {
+            if (!state.rotationActive || !state.currentWord || !state.translationRevealRequested) {
+                return;
+            }
+
+            const detail = state.wordDetails[state.currentWord];
+            if (!detail || detail.status === 'in_progress' || detail.status === 'pending') {
+                if (!state.awaitingDetailForReveal) {
+                    state.awaitingDetailForReveal = true;
+                    wordHiraganaEl.classList.remove('fade-cycle-translation');
+                    wordEnglishEl.classList.remove('fade-cycle-translation');
+                    wordHiraganaEl.textContent = TRANSLATION_WAITING_TEXT;
+                    wordEnglishEl.textContent = '';
+                    wordHiraganaEl.style.opacity = '';
+                    wordEnglishEl.style.opacity = '0';
+                }
+                return;
+            }
+
+            state.awaitingDetailForReveal = false;
+
+            if (detail.status === 'error') {
+                if (!state.translationRevealed) {
+                    state.translationRevealed = true;
+                    state.translationRevealPending = false;
+                    wordHiraganaEl.textContent = '';
+                    wordEnglishEl.textContent = '';
+                    scheduleNextRotation();
+                }
+                return;
+            }
+
+            const isFirstReveal = !state.translationRevealed;
             state.translationRevealed = true;
-            state.translationRevealPending = true;
+            state.translationRevealPending = isFirstReveal;
+
             updateWordDetailDisplay();
+
+            if (isFirstReveal) {
+                scheduleNextRotation();
+            }
         }
 
         function updateWordDetailDisplay() {
@@ -324,8 +391,10 @@
 
             const detail = state.wordDetails[state.currentWord];
             if (!detail || detail.status === 'in_progress' || detail.status === 'pending') {
-                wordHiraganaEl.textContent = '';
-                wordEnglishEl.textContent = '';
+                if (!state.translationRevealRequested) {
+                    wordHiraganaEl.textContent = '';
+                    wordEnglishEl.textContent = '';
+                }
                 return;
             }
 
@@ -419,7 +488,7 @@
                 .then(response => {
                     if (response.status === 202) {
                         state.wordDetailInFlight[word] = false;
-                        scheduleWordDetailRetry(word, 1500);
+                        scheduleWordDetailRetry(word);
                         return response.json().catch(() => null);
                     }
                     if (!response.ok) {
@@ -441,17 +510,25 @@
                     if (detailEntry.status === 'error') {
                         clearWordDetailRetry(word);
                         if (state.currentWord === word) {
-                            resetTranslationDisplay();
-                            setTimeout(() => advanceWordRotation(), 0);
+                            if (state.translationRevealRequested) {
+                                attemptTranslationReveal();
+                            }
                         }
                         return;
                     }
                     if (detailEntry.status === 'in_progress' || detailEntry.status === 'pending') {
-                        scheduleWordDetailRetry(word, 1500);
+                        scheduleWordDetailRetry(word);
+                        if (state.currentWord === word && state.translationRevealRequested) {
+                            attemptTranslationReveal();
+                        }
                     } else {
                         clearWordDetailRetry(word);
                         if (state.currentWord === word) {
-                            updateWordDetailDisplay();
+                            if (state.translationRevealRequested) {
+                                attemptTranslationReveal();
+                            } else {
+                                updateWordDetailDisplay();
+                            }
                         }
                     }
                 })
@@ -460,25 +537,28 @@
                     clearWordDetailRetry(word);
                     state.wordDetails[word] = { status: 'error', hiragana: '', english: '' };
                     if (state.currentWord === word) {
-                        resetTranslationDisplay();
-                        setTimeout(() => advanceWordRotation(), 0);
+                        if (state.translationRevealRequested) {
+                            attemptTranslationReveal();
+                        }
                     }
                 });
         }
 
         function scheduleNextRotation() {
-            if (state.wordTimerHandle) {
-                clearTimeout(state.wordTimerHandle);
+            if (!state.rotationActive) {
+                return;
             }
-            state.wordTimerHandle = setTimeout(() => {
+            clearRotationTimer();
+            state.rotationTimerHandle = setTimeout(() => {
                 advanceWordRotation();
-            }, 30000);
+            }, TRANSLATION_DISPLAY_DURATION_MS);
         }
 
         function advanceWordRotation() {
             if (!state.rotationActive) {
                 return;
             }
+            clearRotationTimer();
             const nextWord = state.nextWord || pickRandomWord(state.currentWord);
             if (!nextWord) {
                 return;
@@ -490,7 +570,6 @@
             if (state.nextWord) {
                 ensureWordDetail(state.nextWord);
             }
-            scheduleNextRotation();
         }
 
         function startWordRotationIfNeeded() {
@@ -506,14 +585,9 @@
             if (state.nextWord) {
                 ensureWordDetail(state.nextWord);
             }
-            scheduleNextRotation();
         }
 
         function stopWordRotation() {
-            if (state.wordTimerHandle) {
-                clearTimeout(state.wordTimerHandle);
-                state.wordTimerHandle = null;
-            }
             resetTranslationDisplay();
             Object.keys(state.wordDetailRetryTimers).forEach(word => {
                 clearTimeout(state.wordDetailRetryTimers[word]);
@@ -573,10 +647,12 @@
                     hiragana: info.hiragana || '',
                     english: info.english || ''
                 };
-                if (status === 'error' && state.currentWord === word) {
-                    setTimeout(() => advanceWordRotation(), 0);
-                } else if (state.currentWord === word) {
-                    updateWordDetailDisplay();
+                if (state.currentWord === word) {
+                    if (state.translationRevealRequested) {
+                        attemptTranslationReveal();
+                    } else if (status === 'done') {
+                        updateWordDetailDisplay();
+                    }
                 }
             });
         }
@@ -595,6 +671,9 @@
                 })
                 .then(data => {
                     state.jobStatus = data.status || state.jobStatus;
+                    if (data.words_status) {
+                        state.wordsStatus = data.words_status;
+                    }
 
                     if (data.error && state.storyStatus !== 'done') {
                         handleJobError(data.error);
@@ -604,6 +683,7 @@
                     if (data.words_status === 'done' && Array.isArray(data.words)) {
                         if (!state.words.length) {
                             state.words = data.words.slice();
+                            state.wordsStatus = 'done';
                             if (!state.words.length && data.status === 'error') {
                                 handleJobError(data.error || 'No burned vocabulary available.');
                                 return;
@@ -642,7 +722,9 @@
                     }
 
                     if (shouldContinuePolling()) {
-                        setTimeout(pollStatus, 4000);
+                        const needsFastPolling = state.wordsStatus !== 'done';
+                        const delay = needsFastPolling ? FAST_POLL_INTERVAL_MS : NORMAL_POLL_INTERVAL_MS;
+                        setTimeout(pollStatus, delay);
                     }
                 })
                 .catch(error => {
