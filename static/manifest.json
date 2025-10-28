@@ -1,7 +1,7 @@
 {
   "id": "jp-friend-online",
   "name": "Japanese Friend Online",
-  "short_name": "JP Friend",
+  "short_name": "Learn Kanji",
   "start_url": "../",
   "scope": "../",
   "display": "standalone",
